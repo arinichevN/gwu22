@@ -1,6 +1,7 @@
 #include "dht22.h"
 
 int dht22_read(int pin, float *t, float *h) {
+    //sending request
     pinPUD(pin, PUD_OFF);
     pinModeOut(pin);
     pinHigh(pin);
@@ -28,7 +29,7 @@ int dht22_read(int pin, float *t, float *h) {
             }
         }
         laststate = pinRead(pin);
-        if (now > start) {
+        if (now >= start) {
             arr[i] = now - start;
         } else {
 #ifdef MODE_DEBUG
@@ -87,10 +88,10 @@ int dht22_read(int pin, float *t, float *h) {
             *t *= -1;
         }
         return 1;
-    } else {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "dht22_read: ERROR: bad crc where pin=%d\n", pin);
-#endif
-        return 0;
     }
+#ifdef MODE_DEBUG
+    fprintf(stderr, "dht22_read: ERROR: bad crc where pin=%d\n", pin);
+#endif
+    return 0;
+
 }

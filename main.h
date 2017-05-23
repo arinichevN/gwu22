@@ -2,10 +2,6 @@
 #ifndef GWU22_H
 #define GWU22_H
 
-#ifndef FILE_INI
-#include "lib/db.h"
-#endif
-
 #include "lib/app.h"
 #include "lib/gpio.h"
 #include "lib/timef.h"
@@ -17,20 +13,19 @@
 #define APP_NAME gwu22
 #define APP_NAME_STR TOSTRING(APP_NAME)
 
-#define REQUEST_INTERVAL {.tv_sec=2,.tv_nsec=500000}
-
-#ifndef MODE_DEBUG
+#ifdef MODE_FULL
 #define CONF_DIR "/etc/controller/" APP_NAME_STR "/"
 #endif
-#ifdef MODE_DEBUG
+#ifndef MODE_FULL
 #define CONF_DIR "./"
 #endif
 
 #define DEVICE_FILE "" CONF_DIR "device.tsv"
 #define CONFIG_FILE "" CONF_DIR "config.tsv"
-#define CONFIG_FILE_DB "" CONF_DIR "main.conf"
 
 #define RETRY_NUM 5
+
+#define FLOAT_NUM "%.3f"
 
 enum {
     ON = 1,
@@ -69,7 +64,7 @@ extern int initDevice(DeviceList *list, DItemList *dl);
 
 extern int checkDevice(DeviceList *list, DItemList *ilist);
 
-extern void readDevice(Device *item, struct timespec interval);
+extern void readDevice(Device *item);
 
 extern void serverRun(int *state, int init_state);
 

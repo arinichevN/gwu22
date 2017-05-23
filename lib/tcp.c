@@ -1,10 +1,9 @@
 
-
-#include "udp.h"
+#include "tcp.h"
 
 int initServer(int *fd, int port) {
     struct sockaddr_in addr;
-    if ((*fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    if ((*fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 #ifdef MODE_DEBUG
         perror("initServer: socket()\n");
 #endif
@@ -14,9 +13,24 @@ int initServer(int *fd, int port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    int flag = 1;
+    if (setsockopt(*fd, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof (int)) < 0) {
+#ifdef MODE_DEBUG
+        perror("initServer: setsockopt()");
+#endif
+        freeSocketFd(fd);
+        return 0;
+    }
     if (bind(*fd, (struct sockaddr*) (&addr), sizeof (addr)) == -1) {
 #ifdef MODE_DEBUG
         perror("initServer: bind()");
+#endif
+        freeSocketFd(fd);
+        return 0;
+    }
+    if (listen(*fd, 7) != 0) {
+#ifdef MODE_DEBUG
+        perror("initServer: listen()");
 #endif
         freeSocketFd(fd);
         return 0;
@@ -28,7 +42,7 @@ void freeSocketFd(int *udp_fd) {
     if (*udp_fd != -1) {
         if (close(*udp_fd) == -1) {
 #ifdef MODE_DEBUG
-            perror("freeSocketFd");
+            perror("freeSocketFd: close()");
 #endif
         }
         *udp_fd = -1;
@@ -36,7 +50,7 @@ void freeSocketFd(int *udp_fd) {
 }
 
 int initClient(int *fd, __time_t tmo) {
-    if ((*fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    if ((*fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 #ifdef MODE_DEBUG
         perror("initClient: socket()");
 #endif
@@ -67,21 +81,39 @@ int makeClientAddr(struct sockaddr_in *addr, const char *addr_str, int port) {
 }
 
 int sendBuf(void *buf, size_t buf_size, int fd, struct sockaddr *addr, socklen_t addr_len) {
-    ssize_t n;
-    n=sendto(fd, buf, buf_size, 0, addr, addr_len);
-    if (n < 0) {
+    if (write(fd, buf, buf_size) < 0) {
 #ifdef MODE_DEBUG
-        perror("sendBuf: error writing to socket");
+        fprintf(stderr, "sendBuf: error writing to socket (%64s)", (char *) buf);
+        perror("detail");
 #endif
         return 0;
     }
-    return n;
 }
 
-int serverRead(void *buf, size_t buf_size, int fd, struct sockaddr * addr, socklen_t * addr_len) {
-    if (recvfrom(fd, buf, buf_size, 0, addr, addr_len) < 0) {
+int serverRead(int *fd_cl,void *buf, size_t buf_size, int fd, struct sockaddr * addr, socklen_t * addr_len) {
+   *fd_cl = accept(fd, addr, addr_len);
+    if (*fd_cl < 0) {
 #ifdef MODE_DEBUG
-        perror("serverRead: recvfrom() error");
+        perror("serverRead: accept()");
+#endif
+        return 0;
+    }
+    if (recv(*fd_cl, buf, buf_size, 0) < 0) {
+#ifdef MODE_DEBUG
+        perror("serverRead: recv()");
+#endif
+        close(*fd_cl);
+        return 0;
+    }
+    return 1;
+}
+void serverFinish(int fd_cl){
+    close(fd_cl);
+}
+int clientConnect(int fd, struct sockaddr * addr, socklen_t * addr_len) {
+    if (connect(fd, addr, *addr_len) == -1) {
+#ifdef MODE_DEBUG
+        perror("clientConnect: connect()");
 #endif
         return 0;
     }
@@ -89,30 +121,11 @@ int serverRead(void *buf, size_t buf_size, int fd, struct sockaddr * addr, sockl
 }
 
 int clientRead(int fd, void *buf, size_t buf_size) {
-    if (recvfrom(fd, buf, buf_size, 0, NULL, NULL) < 0) {
+    if (recv(fd, buf, buf_size, 0) < 0) {
 #ifdef MODE_DEBUG
-        perror("clientRead: recvfrom()");
+        perror("clientRead: recv()");
 #endif
         return 0;
     }
     return 1;
-}
-#define UDP_READ_SIZE 512
-
-void readAll(int fd) {
-    char buf[UDP_READ_SIZE];
-    int r = 0;
-    while (1) {
-        r = recv(fd, (void *) buf, sizeof buf, 0);
-        if (r < 0) {
-#ifdef MODE_DEBUG
-            perror("readAll: recvfrom()");
-#endif
-            return;
-        }
-        if (r < UDP_READ_SIZE) {
-            return;
-        }
-    }
-
 }

@@ -1,15 +1,13 @@
 FUN_LIST_GET_BY_ID(DItem)
 
-int sendStrPack(char qnf, const char *cmd) {
-    extern size_t udp_buf_size;
+int sendStrPack(char qnf, char *cmd) {
     extern Peer peer_client;
-    return acp_sendStrPack(qnf, cmd, udp_buf_size, &peer_client);
+    return acp_sendStrPack(qnf, cmd,  &peer_client);
 }
 
-int sendBufPack(char *buf, char qnf, const char *cmd_str) {
-    extern size_t udp_buf_size;
+int sendBufPack(char *buf, char qnf, char *cmd_str) {
     extern Peer peer_client;
-    return acp_sendBufPack(buf, qnf, cmd_str, udp_buf_size, &peer_client);
+    return acp_sendBufPack(buf, qnf, cmd_str,  &peer_client);
 }
 
 void sendStr(const char *s, uint8_t *crc) {
@@ -24,20 +22,23 @@ void printData(DeviceList *dl, DItemList *il) {
     int i = 0;
     char q[LINE_SIZE];
     uint8_t crc = 0;
-    snprintf(q, sizeof q, "pid path: %s\n", pid_path);
+    snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONFIG_FILE);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "tsv device file: %s\n", DEVICE_FILE);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "port: %d\n", sock_port);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "pid_path: %s\n", pid_path);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "sock_buf_size: %d\n", sock_buf_size);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "DEVICE_FILE: %s\n", DEVICE_FILE);
     sendStr(q, &crc);
     snprintf(q, sizeof q, "app_state: %s\n", getAppState(app_state));
     sendStr(q, &crc);
     snprintf(q, sizeof q, "PID: %d\n", proc_id);
     sendStr(q, &crc);
-    snprintf(q, sizeof q, "udp port: %d\n", udp_port);
-    sendStr(q, &crc);
-    snprintf(q, sizeof q, "db config file: %s\n", CONFIG_FILE_DB);
-    sendStr(q, &crc);
-    snprintf(q, sizeof q, "tsv config file: %s\n", CONFIG_FILE);
-    sendStr(q, &crc);
-    snprintf(q, sizeof q, "tsv device file: %s\n", DEVICE_FILE);
-    sendStr(q, &crc);
+
     sendStr("+-----------------------------------------------------------------------+\n", &crc);
     sendStr("|                              device                                   |\n", &crc);
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
@@ -96,7 +97,7 @@ void printHelp() {
     snprintf(q, sizeof q, "%c\tget this help; response will be packed into multiple packets\n", ACP_CMD_APP_HELP);
     sendStr(q, &crc);
 
-    snprintf(q, sizeof q, "%c\tget temperature in format: sensorId_temperature_timeSec_timeNsec_valid; program id expected if '.' quantifier is used\n", ACP_CMD_GET_FTS);
+    snprintf(q, sizeof q, "%c\tget temperature in format: sensorId\\ttemperature\\ttimeSec\\ttimeNsec\\tvalid; program id expected if '.' quantifier is used\n", ACP_CMD_GET_FTS);
     sendStr(q, &crc);
     sendFooter(crc);
 }

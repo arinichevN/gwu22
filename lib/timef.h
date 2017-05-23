@@ -16,6 +16,10 @@
 #define WDAY_NUM 7
 //CLOCK_PROCESS_CPUTIME_ID
 
+#define usec2timespec(us, ts)             \
+  (ts)->tv_sec = (time_t) (us / 1000000);            \
+  (ts)->tv_nsec = (long) (us % 1000000) * 1000;
+
 #define timespeccmp(a, b, CMP)             \
   (((a)->tv_sec == (b)->tv_sec) ?            \
    ((a)->tv_nsec CMP (b)->tv_nsec) :            \
@@ -85,6 +89,8 @@ extern time_t getTimePassed(const Ton *t);
 extern struct timespec getTimePassed_ts(struct timespec t);
 
 extern struct timespec getTimeRest_ts(struct timespec t_interval, struct timespec t_start);
+
+extern struct timespec getTimeRestTmr(struct timespec interval, Ton_ts tmr);
 
 extern int toyHasCome(const TOY *current, const TOY *wanted);
 

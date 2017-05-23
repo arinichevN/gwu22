@@ -57,6 +57,7 @@ int config_getCycleDurationUs(PGconn *db_conn, const char *id, struct timespec *
     return 0;
 }
 
+/*
 int config_getUDPPort(PGconn *db_conn, const char *id, size_t *value) {
     PGresult *r;
     char q[LINE_SIZE];
@@ -75,6 +76,7 @@ int config_getUDPPort(PGconn *db_conn, const char *id, size_t *value) {
     PQclear(r);
     return 0;
 }
+*/
 
 int config_getPidPath(PGconn *db_conn, const char *id, char *value, size_t value_size) {
     PGresult *r;
@@ -156,7 +158,7 @@ int config_getLockKey(PGconn *db_conn, const char *id, char *value, size_t value
     return 0;
 }
 
-static int config_checkPeerList(const PeerList *list) {
+int config_checkPeerList(const PeerList *list) {
     size_t i, j;
     //unique id
     for (i = 0; i < list->length; i++) {
@@ -170,7 +172,7 @@ static int config_checkPeerList(const PeerList *list) {
     return 1;
 }
 
-int config_getPeerList(PGconn *db_conn, PeerList *list, int *fd) {
+int config_getPeerList(PGconn *db_conn, PeerList *list, int *fd, size_t sock_buf_size) {
     PGresult *r;
     size_t i;
     list->length = 0;
@@ -194,7 +196,7 @@ int config_getPeerList(PGconn *db_conn, PeerList *list, int *fd) {
             char addr_str[NAME_SIZE];
             memset(addr_str, 0, sizeof addr_str);
             memcpy(addr_str, PQgetvalue(r, i, 2), NAME_SIZE);
-            if (!makeUDPClientAddr(&list->item[i].addr, addr_str, port)) {
+            if (!makeClientAddr(&list->item[i].addr, addr_str, port)) {
                 PQclear(r);
                 fprintf(stderr, "config_getPeerList: ERROR: bad ip address for peer with id=%s\n", list->item[i].id);
                 return 0;
@@ -206,6 +208,7 @@ int config_getPeerList(PGconn *db_conn, PeerList *list, int *fd) {
                 fprintf(stderr, "config_getPeerList: ERROR: initMutex() failed for peer with id=%s\n", list->item[i].id);
                 return 0;
             }
+            list->item[i].sock_buf_size=sock_buf_size;
         }
     }
     PQclear(r);

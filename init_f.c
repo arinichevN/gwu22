@@ -8,7 +8,7 @@ int readSettings() {
     }
 
     int n;
-    n = fscanf(stream, "%d\t%255s\t%d\t", &udp_port, pid_path, &udp_buf_size);
+    n = fscanf(stream, "%d\t%255s\t%d\t", &sock_port, pid_path, &sock_buf_size);
     if (n != 3) {
         fclose(stream);
         fputs("ERROR: readSettings: bad row format\n", stderr);
@@ -16,7 +16,7 @@ int readSettings() {
     }
     fclose(stream);
 #ifdef MODE_DEBUG
-    printf("readSettings: udp_port: %d, pid_path: %s, udp_buf_size: %d\n", udp_port, pid_path, udp_buf_size);
+    printf("readSettings: sock_port: %d, pid_path: %s, sock_buf_size: %d\n", sock_port, pid_path, sock_buf_size);
 #endif
     return 1;
 }

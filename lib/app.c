@@ -1,6 +1,25 @@
 
-
 #include "app.h"
+
+void putse(const char *str) {
+#ifdef MODE_DEBUG
+    fputs(str, stderr);
+#endif
+}
+
+void printfe(const char *str, ...) {
+#ifdef MODE_DEBUG
+    va_list argp;
+    va_start(argp, str);
+    fprintf(stderr, str, argp);
+    va_end(argp);
+#endif
+}
+
+int file_exist(const char *filename) {
+    struct stat buffer;
+    return (stat(filename, &buffer) == 0);
+}
 
 void setPriorityMax(int policy) {
     int max = sched_get_priority_max(policy);
@@ -160,6 +179,33 @@ void freeMutex(Mutex *m) {
             m->created = 0;
         }
     }
+}
+
+int lockMutex(Mutex *item) {
+    if (pthread_mutex_lock(&item->self) != 0) {
+#ifdef MODE_DEBUG
+        perror("ERROR: lockMutex: error locking mutex");
+#endif 
+        return 0;
+    }
+    return 1;
+}
+
+int tryLockMutex(Mutex *item) {
+    if (pthread_mutex_trylock(&item->self) != 0) {
+        return 0;
+    }
+    return 1;
+}
+
+int unlockMutex(Mutex *item) {
+    if (pthread_mutex_unlock(&item->self) != 0) {
+#ifdef MODE_DEBUG
+        perror("ERROR: unlockMutex: error unlocking mutex");
+#endif 
+        return 0;
+    }
+    return 1;
 }
 
 void waitThreadCmd(char *thread_cmd, char *thread_qfr, char *cmd) {

@@ -9,35 +9,24 @@ char pid_path[LINE_SIZE];
 int app_state = APP_INIT;
 int pid_file = -1;
 int proc_id = -1;
-struct timespec cycle_duration = {0, 0};
 int data_initialized = 0;
-int udp_port = -1;
-int udp_fd = -1; //udp socket file descriptor
-size_t udp_buf_size = 0;
-struct timespec interval = REQUEST_INTERVAL;
-Peer peer_client = {.fd = &udp_fd, .addr_size = sizeof peer_client.addr};
+int sock_port = -1;
+int sock_fd = -1; //socket file descriptor
+size_t sock_buf_size = 0;
+Peer peer_client = {.fd = &sock_fd, .addr_size = sizeof peer_client.addr};
 
 char db_conninfo_settings[LINE_SIZE];
 char db_conninfo_data[LINE_SIZE];
 
-#ifndef FILE_INI
-PGconn *db_conn_settings = NULL;
-PGconn *db_conn_data = NULL;
-#endif
 
 I1List i1l = {NULL, 0};
 DeviceList device_list = {NULL, 0};
 DItemList ditem_list = {NULL, 0};
 
 #include "util.c"
-
-#ifdef FILE_INI
-#pragma message("MESSAGE: data from file")
 #include "init_f.c"
-#else
-#pragma message("MESSAGE: data from DBMS")
-#include "init_d.c"
-#endif
+
+
 
 #ifdef PLATFORM_ANY
 #pragma message("MESSAGE: building for all platforms")
@@ -77,8 +66,7 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
     return 1;
 }
 
-void readDevice(Device *item, struct timespec interval) {
-    struct timespec now = getCurrentTime();
+void readDevice(Device *item) {
     int i;
     item->t->value_state = 0;
     item->h->value_state = 0;
@@ -107,23 +95,31 @@ void readDevice(Device *item, struct timespec interval) {
 }
 
 void serverRun(int *state, int init_state) {
-    char buf_in[udp_buf_size];
-    char buf_out[udp_buf_size];
+    char buf_in[sock_buf_size];
+    char buf_out[sock_buf_size];
     uint8_t crc;
     size_t i, j;
     char q[LINE_SIZE];
     crc = 0;
     memset(buf_in, 0, sizeof buf_in);
     acp_initBuf(buf_out, sizeof buf_out);
-    if (recvfrom(udp_fd, buf_in, sizeof buf_in, 0, (struct sockaddr*) (&(peer_client.addr)), &(peer_client.addr_size)) < 0) {
+
+    if (!serverRead((void *) buf_in, sizeof buf_in, sock_fd, (struct sockaddr*) (&(peer_client.addr)), &(peer_client.addr_size))) {
+        return;
+    }
+
+/*
+        if (recvfrom(sock_fd, (void *) buf_in, sizeof buf_in, 0, (struct sockaddr*) (&(peer_client.addr)), &(peer_client.addr_size)) < 0) {
 #ifdef MODE_DEBUG
         perror("serverRun: recvfrom() error");
 #endif
+        return;
     }
+*/
 #ifdef MODE_DEBUG
-    dumpBuf(buf_in, sizeof buf_in);
+    acp_dumpBuf(buf_in, sizeof buf_in);
 #endif    
-    if (!crc_check(buf_in, sizeof buf_in)) {
+    if (!acp_crc_check(buf_in, sizeof buf_in)) {
 #ifdef MODE_DEBUG
         fputs("serverRun: crc check failed\n", stderr);
 #endif
@@ -177,11 +173,11 @@ void serverRun(int *state, int init_state) {
             switch (buf_in[0]) {
                 case ACP_QUANTIFIER_BROADCAST:
                     for (i = 0; i < device_list.length; i++) {
-                        readDevice(&device_list.item[i], interval);
+                        readDevice(&device_list.item[i]);
                     }
                     for (i = 0; i < ditem_list.length; i++) {
-                        snprintf(q, sizeof q, "%d_%f_%ld_%ld_%d\n", ditem_list.item[i].id, ditem_list.item[i].value, ditem_list.item[i].device->tm.tv_sec, ditem_list.item[i].device->tm.tv_nsec, ditem_list.item[i].value_state);
-                        if (bufCat(buf_out, q, udp_buf_size) == NULL) {
+                        snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, ditem_list.item[i].id, ditem_list.item[i].value, ditem_list.item[i].device->tm.tv_sec, ditem_list.item[i].device->tm.tv_nsec, ditem_list.item[i].value_state);
+                        if (bufCat(buf_out, q, sock_buf_size) == NULL) {
                             sendStrPack(ACP_QUANTIFIER_BROADCAST, ACP_RESP_BUF_OVERFLOW);
                             return;
                         }
@@ -195,9 +191,9 @@ void serverRun(int *state, int init_state) {
                     for (i = 0; i < i1l.length; i++) {
                         DItem *ditem = getDItemById(i1l.item[i], &ditem_list);
                         if (ditem != NULL) {
-                            readDevice(ditem->device, interval);
-                            snprintf(q, sizeof q, "%d_%f_%ld_%ld_%d\n", ditem->id, ditem->value, ditem->device->tm.tv_sec, ditem->device->tm.tv_nsec, ditem->value_state);
-                            if (bufCat(buf_out, q, udp_buf_size) == NULL) {
+                            readDevice(ditem->device);
+                            snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, ditem->id, ditem->value, ditem->device->tm.tv_sec, ditem->device->tm.tv_nsec, ditem->value_state);
+                            if (bufCat(buf_out, q, sock_buf_size) == NULL) {
                                 sendStrPack(ACP_QUANTIFIER_BROADCAST, ACP_RESP_BUF_OVERFLOW);
                                 return;
                             }
@@ -214,21 +210,18 @@ void serverRun(int *state, int init_state) {
         default:
             return;
     }
-
 }
 
 void initApp() {
-    if (!readConf(CONFIG_FILE_DB, db_conninfo_settings, app_class)) {
-        exit_nicely_e("initApp: failed to read configuration file\n");
-    }
     if (!readSettings()) {
         exit_nicely_e("initApp: failed to read settings\n");
     }
+    peer_client.sock_buf_size = sock_buf_size;
     if (!initPid(&pid_file, &proc_id, pid_path)) {
         exit_nicely_e("initApp: failed to initialize pid\n");
     }
-    if (!initUDPServer(&udp_fd, udp_port)) {
-        exit_nicely_e("initApp: failed to initialize udp server\n");
+    if (!initServer(&sock_fd, sock_port)) {
+        exit_nicely_e("initApp: failed to initialize server\n");
     }
 #ifndef PLATFORM_ANY
     if (!gpioSetup()) {
@@ -238,34 +231,20 @@ void initApp() {
 }
 
 int initData() {
-#ifndef FILE_INI
-    if (!initDB(&db_conn_data, db_conninfo_data)) {
-        return 0;
-    }
-#endif
     if (!initDevice(&device_list, &ditem_list)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
-#ifndef FILE_INI
-        freeDB(db_conn_data);
-#endif
         return 0;
     }
     if (!checkDevice(&device_list, &ditem_list)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
-#ifndef FILE_INI
-        freeDB(db_conn_data);
-#endif
         return 0;
     }
-    i1l.item = (int *) malloc(udp_buf_size * sizeof *(i1l.item));
+    i1l.item = (int *) malloc(sock_buf_size * sizeof *(i1l.item));
     if (i1l.item == NULL) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
-#ifndef FILE_INI
-        freeDB(db_conn_data);
-#endif
         return 0;
     }
     return 1;
@@ -275,9 +254,6 @@ void freeData() {
     FREE_LIST(&i1l);
     FREE_LIST(&ditem_list);
     FREE_LIST(&device_list);
-#ifndef FILE_INI
-    freeDB(db_conn_data);
-#endif
 }
 
 void freeApp() {
@@ -285,10 +261,7 @@ void freeApp() {
 #ifndef PLATFORM_ANY
     gpioFree();
 #endif
-    freeSocketFd(&udp_fd);
-#ifndef FILE_INI
-    freeDB(db_conn_settings);
-#endif
+    freeSocketFd(&sock_fd);
     freePid(&pid_file, &proc_id, pid_path);
 }
 
@@ -305,6 +278,12 @@ void exit_nicely_e(char *s) {
 }
 
 int main(int argc, char** argv) {
+        if (geteuid() != 0) {
+#ifdef MODE_DEBUG
+        fprintf(stderr,"%s: root user expected\n", APP_NAME_STR);
+#endif
+        return (EXIT_FAILURE);
+    }
 #ifndef MODE_DEBUG
     daemon(0, 0);
 #endif

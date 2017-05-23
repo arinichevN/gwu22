@@ -1,16 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include "serial.h"
+
+int initSerial(int *fd, const char *device, const int baud) {
+    *fd = serialOpen(device, baud);
+    if (*fd == -1) {
+        return 0;
+    }
+    return 1;
+}
 
 int serialOpen(const char *device, const int baud) {
     struct termios options;
@@ -77,7 +74,7 @@ int serialOpen(const char *device, const int baud) {
             return -2;
     }
 
-    if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) == -1){
+    if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) == -1) {
         return -1;
     }
 
@@ -129,3 +126,49 @@ int serialAvailable(const int fd) {
     }
     return result;
 }
+
+int serialWaitAvailable(int fd, struct timespec max_time) {
+    Ton_ts tmr = {.ready = 0};
+    while (1) {
+        if (serialAvailable(fd)) {
+            return 1;
+        }
+        if (ton_ts(max_time, &tmr)) {
+            return 0;
+        }
+        delayUsIdle(100);
+    }
+}
+
+int serialPuts(const int fd, char *str) {
+#ifdef MODE_DEBUG
+    printf("serialPuts: %s\n", str);
+#endif
+    size_t n, sn;
+    sn = strlen(str);
+    n = write(fd, str, strlen(str));
+    if (n < sn) {
+        return 0;
+    }
+    return 1;
+}
+
+void serialRead(int fd, void *buf, size_t buf_size) {
+    uint8_t x;
+    size_t i = 0;
+    uint8_t * b = (uint8_t *) buf;
+    while (i < buf_size && read(fd, &x, 1) == 1) {
+        b[i] = x;
+        i++;
+    }
+#ifdef MODE_DEBUG
+    printf("response: %s\n", b);
+    for (i = 0; i < buf_size; i++) {
+        printf("%hhu.", b[i]);
+    }
+    puts(" ");
+#endif
+}
+
+
+
