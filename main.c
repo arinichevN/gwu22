@@ -97,10 +97,7 @@ void readDevice(Device *item) {
 void serverRun(int *state, int init_state) {
     char buf_in[sock_buf_size];
     char buf_out[sock_buf_size];
-    uint8_t crc;
     size_t i, j;
-    char q[LINE_SIZE];
-    crc = 0;
     memset(buf_in, 0, sizeof buf_in);
     acp_initBuf(buf_out, sizeof buf_out);
 
@@ -108,14 +105,14 @@ void serverRun(int *state, int init_state) {
         return;
     }
 
-/*
-        if (recvfrom(sock_fd, (void *) buf_in, sizeof buf_in, 0, (struct sockaddr*) (&(peer_client.addr)), &(peer_client.addr_size)) < 0) {
-#ifdef MODE_DEBUG
-        perror("serverRun: recvfrom() error");
-#endif
-        return;
-    }
-*/
+    /*
+            if (recvfrom(sock_fd, (void *) buf_in, sizeof buf_in, 0, (struct sockaddr*) (&(peer_client.addr)), &(peer_client.addr_size)) < 0) {
+    #ifdef MODE_DEBUG
+            perror("serverRun: recvfrom() error");
+    #endif
+            return;
+        }
+     */
 #ifdef MODE_DEBUG
     acp_dumpBuf(buf_in, sizeof buf_in);
 #endif    
@@ -176,9 +173,7 @@ void serverRun(int *state, int init_state) {
                         readDevice(&device_list.item[i]);
                     }
                     for (i = 0; i < ditem_list.length; i++) {
-                        snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, ditem_list.item[i].id, ditem_list.item[i].value, ditem_list.item[i].device->tm.tv_sec, ditem_list.item[i].device->tm.tv_nsec, ditem_list.item[i].value_state);
-                        if (bufCat(buf_out, q, sock_buf_size) == NULL) {
-                            sendStrPack(ACP_QUANTIFIER_BROADCAST, ACP_RESP_BUF_OVERFLOW);
+                        if (!catFTS(&ditem_list.item[i], buf_out, sock_buf_size)) {
                             return;
                         }
                     }
@@ -192,9 +187,7 @@ void serverRun(int *state, int init_state) {
                         DItem *ditem = getDItemById(i1l.item[i], &ditem_list);
                         if (ditem != NULL) {
                             readDevice(ditem->device);
-                            snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, ditem->id, ditem->value, ditem->device->tm.tv_sec, ditem->device->tm.tv_nsec, ditem->value_state);
-                            if (bufCat(buf_out, q, sock_buf_size) == NULL) {
-                                sendStrPack(ACP_QUANTIFIER_BROADCAST, ACP_RESP_BUF_OVERFLOW);
+                            if (!catFTS(ditem, buf_out, sock_buf_size)) {
                                 return;
                             }
                         }
@@ -278,9 +271,9 @@ void exit_nicely_e(char *s) {
 }
 
 int main(int argc, char** argv) {
-        if (geteuid() != 0) {
+    if (geteuid() != 0) {
 #ifdef MODE_DEBUG
-        fprintf(stderr,"%s: root user expected\n", APP_NAME_STR);
+        fprintf(stderr, "%s: root user expected\n", APP_NAME_STR);
 #endif
         return (EXIT_FAILURE);
     }

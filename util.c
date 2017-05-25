@@ -1,3 +1,6 @@
+
+#include "main.h"
+
 FUN_LIST_GET_BY_ID(DItem)
 
 int sendStrPack(char qnf, char *cmd) {
@@ -16,6 +19,16 @@ void sendStr(const char *s, uint8_t *crc) {
 
 void sendFooter(int8_t crc) {
     acp_sendFooter(crc, &peer_client);
+}
+
+int catFTS(DItem *item, char *buf, size_t buf_size) {
+    char q[LINE_SIZE];
+    snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, item->id, item->value, item->device->tm.tv_sec, item->device->tm.tv_nsec, item->value_state);
+    if (bufCat(buf, q, buf_size) == NULL) {
+        sendStrPack(ACP_QUANTIFIER_BROADCAST, ACP_RESP_BUF_OVERFLOW);
+        return 0;
+    }
+    return 1;
 }
 
 void printData(DeviceList *dl, DItemList *il) {
