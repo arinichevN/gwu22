@@ -1,15 +1,14 @@
 #!/bin/bash
 
 APP=gwu22
-APP_DBG=`printf "%s_dbg" "$APP"`
-
+APP_DBG=`printf "%s_dbg" "$APP"
 INST_DIR=/usr/sbin
 CONF_DIR=/etc/controller
 CONF_DIR_APP=$CONF_DIR/$APP
 PID_DIR=/var/run
 
 SOCK=udp
-
+DEBUG_PARAM="-Wall -pedantic"
 MODE_DEBUG=-DMODE_DEBUG
 MODE_FULL=-DMODE_FULL
 
@@ -54,16 +53,16 @@ function conf_autostart {
 	echo "Autostart configured";
 }
 function build_lib {
-	gcc $1 $PLATFORM -c app.c -D_REENTRANT -pthread && \
-	gcc $1 $PLATFORM -c crc.c
-	gcc $1 $PLATFORM -c gpio.c && \
-	gcc $1 $PLATFORM -c timef.c && \
-	gcc $1 $PLATFORM -c $SOCK.c && \
-	gcc $1 $PLATFORM -c util.c && \
-	gcc $1 $PLATFORM -c dht22.c && \
+	gcc $1 $PLATFORM -c app.c -D_REENTRANT $DEBUG_PARAM -pthread && \
+	gcc $1 $PLATFORM -c crc.c $DEBUG_PARAM && \
+	gcc $1 $PLATFORM -c gpio.c $DEBUG_PARAM && \
+	gcc $1 $PLATFORM -c timef.c  $DEBUG_PARAM&& \
+	gcc $1 $PLATFORM -c $SOCK.c $DEBUG_PARAM && \
+	gcc $1 $PLATFORM -c util.c $DEBUG_PARAM && \
+	gcc $1 $PLATFORM -c dht22.c $DEBUG_PARAM && \
 	
 	cd acp && \
-	gcc $1 $PLATFORM -c main.c && \
+	gcc $1 $PLATFORM -c main.c $DEBUG_PARAM && \
 	cd ../ && \
 	echo "library: making archive..." && \
 	rm -f libpac.a
@@ -76,15 +75,17 @@ function build {
 	cd lib && \
 	build_lib $1 && \
 	cd ../ 
-	gcc -D_REENTRANT $1 $3 $PLATFORM main.c -o $2 -pthread -L./lib -lpac && echo "Application successfully compiled. Launch command: sudo ./"$2
+	gcc -D_REENTRANT $1 $3 $PLATFORM main.c -o $2 $DEBUG_PARAM -pthread -L./lib -lpac && echo "Application successfully compiled. Launch command: sudo ./"$2
 }
 
 function full {
+	DEBUG_PARAM=$NONE
 	build $NONE $APP $MODE_FULL && \
 	build $MODE_DEBUG $APP_DBG $MODE_FULL && \
 	move_bin && move_bin_dbg && move_conf && conf_autostart
 }
 function full_nc {
+	DEBUG_PARAM=$NONE
 	build $NONE $APP $MODE_FULL && \
 	build $MODE_DEBUG $APP_DBG $MODE_FULL  && \
 	move_bin && move_bin_dbg
