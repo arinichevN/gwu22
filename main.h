@@ -42,6 +42,7 @@ struct device_st {
     struct ditem_st *t;
     struct ditem_st *h;
     struct timespec tm; //measurement time
+    unsigned int retry_count;
 };
 
 struct ditem_st {
@@ -60,7 +61,7 @@ DEF_LIST(DItem)
 
 extern int readSettings();
 
-extern int initDevice(DeviceList *list, DItemList *dl);
+extern int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count);
 
 extern int checkDevice(DeviceList *list, DItemList *ilist);
 

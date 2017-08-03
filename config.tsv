@@ -1,1 +1,2 @@
-49162	/var/run/gwu22.pid	508	1000
+port	PID_path	socket_buffer_size retry_count
+49162	/var/run/gwu22.pid	508	5

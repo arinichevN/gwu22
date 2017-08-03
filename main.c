@@ -15,9 +15,7 @@ int sock_fd = -1; //socket file descriptor
 size_t sock_buf_size = 0;
 Peer peer_client = {.fd = &sock_fd, .addr_size = sizeof peer_client.addr};
 
-char db_conninfo_settings[LINE_SIZE];
-char db_conninfo_data[LINE_SIZE];
-
+unsigned int retry_count = 0;
 
 I1List i1l = {NULL, 0};
 DeviceList device_list = {NULL, 0};
@@ -70,7 +68,7 @@ void readDevice(Device *item) {
     int i;
     item->t->value_state = 0;
     item->h->value_state = 0;
-    for (i = 0; i < RETRY_NUM; i++) {
+    for (i = 0; i < item->retry_count; i++) {
 #ifdef MODE_DEBUG
         printf("reading from pin: %d\n", item->pin);
 #endif
@@ -97,7 +95,7 @@ void readDevice(Device *item) {
 void serverRun(int *state, int init_state) {
     char buf_in[sock_buf_size];
     char buf_out[sock_buf_size];
-    size_t i, j;
+    size_t i;
     memset(buf_in, 0, sizeof buf_in);
     acp_initBuf(buf_out, sizeof buf_out);
 
@@ -224,7 +222,7 @@ void initApp() {
 }
 
 int initData() {
-    if (!initDevice(&device_list, &ditem_list)) {
+    if (!initDevice(&device_list, &ditem_list, retry_count)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
         return 0;

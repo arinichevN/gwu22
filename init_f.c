@@ -3,20 +3,24 @@
 int readSettings() {
     FILE* stream = fopen(CONFIG_FILE, "r");
     if (stream == NULL) {
-        fputs("ERROR: readSettings: fopen", stderr);
+#ifdef MODE_DEBUG
+        fputs("ERROR: readSettings: fopen\n", stderr);
+#endif
         return 0;
     }
-
+    skipLine(stream);
     int n;
-    n = fscanf(stream, "%d\t%255s\t%d\t", &sock_port, pid_path, &sock_buf_size);
-    if (n != 3) {
+    n = fscanf(stream, "%d\t%255s\t%d\t%u", &sock_port, pid_path, &sock_buf_size, &retry_count);
+    if (n != 4) {
         fclose(stream);
+#ifdef MODE_DEBUG
         fputs("ERROR: readSettings: bad row format\n", stderr);
+#endif
         return 0;
     }
     fclose(stream);
 #ifdef MODE_DEBUG
-    printf("readSettings: sock_port: %d, pid_path: %s, sock_buf_size: %d\n", sock_port, pid_path, sock_buf_size);
+    printf("readSettings: \n\tsock_port: %d, \n\tpid_path: %s, \n\tsock_buf_size: %d \n\tretry_count: %u\n", sock_port, pid_path, sock_buf_size, retry_count);
 #endif
     return 1;
 }
@@ -27,12 +31,13 @@ int readSettings() {
 #define INDT i*2
 #define INDH i*2+1
 
-int initDevice(DeviceList *list, DItemList *dl) {
+int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
     FILE* stream = fopen(DEVICE_FILE, "r");
     if (stream == NULL) {
         fputs("ERROR: initDevice: fopen\n", stderr);
         return 0;
     }
+    skipLine(stream);
     int rnum = 0;
     while (1) {
         int n = 0, x1, x2, x3;
@@ -47,7 +52,7 @@ int initDevice(DeviceList *list, DItemList *dl) {
 
     }
     rewind(stream);
-size_t i;
+    size_t i;
     list->length = rnum;
     if (list->length > 0) {
         list->item = (Device *) malloc(list->length * sizeof *(list->item));
@@ -57,6 +62,7 @@ size_t i;
             fclose(stream);
             return 0;
         }
+        skipLine(stream);
         int done = 1;
         FORL{
             int n;
@@ -73,6 +79,7 @@ size_t i;
 #endif
             LIi.tm.tv_sec = 0;
             LIi.tm.tv_nsec = 0;
+            LIi.retry_count = retry_count;
         }
         if (!done) {
             fclose(stream);

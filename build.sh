@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APP=gwu22
-APP_DBG=`printf "%s_dbg" "$APP"
+APP_DBG=`printf "%s_dbg" "$APP"`
 INST_DIR=/usr/sbin
 CONF_DIR=/etc/controller
 CONF_DIR_APP=$CONF_DIR/$APP
@@ -60,7 +60,6 @@ function build_lib {
 	gcc $1 $PLATFORM -c $SOCK.c $DEBUG_PARAM && \
 	gcc $1 $PLATFORM -c util.c $DEBUG_PARAM && \
 	gcc $1 $PLATFORM -c dht22.c $DEBUG_PARAM && \
-	
 	cd acp && \
 	gcc $1 $PLATFORM -c main.c $DEBUG_PARAM && \
 	cd ../ && \
@@ -69,8 +68,6 @@ function build_lib {
 	ar -crv libpac.a app.o crc.o gpio.o timef.o $SOCK.o util.o dht22.o acp/main.o && echo "library: done"
 	rm -f *.o acp/*.o
 }
-#    1         2
-#debug_mode bin_name
 function build {
 	cd lib && \
 	build_lib $1 && \
@@ -93,7 +90,6 @@ function full_nc {
 function part_debug {
 	build $MODE_DEBUG $APP_DBG $NONE
 }
-
 function uninstall {
 	pkill -F $PID_DIR/$APP.pid --signal 9
 	update-rc.d -f $APP remove
@@ -106,5 +102,6 @@ function uninstall_nc {
 	rm -f $INST_DIR/$APP
 	rm -f $INST_DIR/$APP_DBG
 }
+
 f=$1
 ${f}

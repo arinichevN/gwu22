@@ -59,12 +59,12 @@ void printData(DeviceList *dl, DItemList *il) {
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
     for (i = 0; i < dl->length; i++) {
         snprintf(q, sizeof q, "|%11p|%11d|%11d|%11d|%11p|%11p|\n",
-                &dl->item[i],
+                (void *)&dl->item[i],
                 dl->item[i].pin,
                 dl->item[i].t_id,
                 dl->item[i].h_id,
-                dl->item[i].t,
-                dl->item[i].h
+                (void *)dl->item[i].t,
+                (void *)dl->item[i].h
                 );
         sendStr(q, &crc);
     }
@@ -77,13 +77,13 @@ void printData(DeviceList *dl, DItemList *il) {
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
     for (i = 0; i < il->length; i++) {
         snprintf(q, sizeof q, "|%11p|%11d|%11f|%11d|%11ld|%11ld|%11p|\n",
-                &il->item[i],
+                (void *)&il->item[i],
                 il->item[i].id,
                 il->item[i].value,
                 il->item[i].value_state,
                 il->item[i].device->tm.tv_sec,
                 il->item[i].device->tm.tv_nsec,
-                il->item[i].device
+                (void *)il->item[i].device
                 );
         sendStr(q, &crc);
     }
