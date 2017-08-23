@@ -24,17 +24,8 @@ DItemList ditem_list = {NULL, 0};
 #include "util.c"
 #include "init_f.c"
 
-
-
-#ifdef PLATFORM_ANY
-#pragma message("MESSAGE: building for all platforms")
-#else
-#pragma message("MESSAGE: building for certain platform")
-#endif
-
 int checkDevice(DeviceList *list, DItemList *ilist) {
     size_t i, j;
-#ifndef PLATFORM_ANY
     //valid pin address
     FORL{
         if (!checkPin(LIi.pin)) {
@@ -42,7 +33,6 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
             return 0;
         }
     }
-#endif
     //unique pin
     FORL{
         for (j = i + 1; j < list->length; j++) {
@@ -64,6 +54,12 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
     return 1;
 }
 
+void lcorrect(DItem *item) {
+    if (item->lcorrection.active) {
+        item->value = item->value * item->lcorrection.factor + item->lcorrection.delta;
+    }
+}
+
 void readDevice(Device *item) {
     int i;
     item->t->value_state = 0;
@@ -72,20 +68,24 @@ void readDevice(Device *item) {
 #ifdef MODE_DEBUG
         printf("reading from pin: %d\n", item->pin);
 #endif
-#ifndef PLATFORM_ANY
+#ifndef CPU_ANY
         if (dht22_read(item->pin, &item->t->value, &item->h->value)) {
             item->tm = getCurrentTime();
             item->t->value_state = 1;
             item->h->value_state = 1;
+            lcorrect(item->t);
+            lcorrect(item->h);
             return;
         }
         delayUsIdle(400000);
 #endif
-#ifdef PLATFORM_ANY
+#ifdef CPU_ANY
         item->t->value = item->h->value = 0.0f;
         item->tm = getCurrentTime();
         item->t->value_state = 1;
         item->h->value_state = 1;
+        lcorrect(item->t);
+        lcorrect(item->h);
         return;
 #endif
 
@@ -214,11 +214,9 @@ void initApp() {
     if (!initServer(&sock_fd, sock_port)) {
         exit_nicely_e("initApp: failed to initialize server\n");
     }
-#ifndef PLATFORM_ANY
     if (!gpioSetup()) {
         exit_nicely_e("initApp: failed to initialize GPIO\n");
     }
-#endif
 }
 
 int initData() {
@@ -231,6 +229,9 @@ int initData() {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
         return 0;
+    }
+    if (!initDeviceLCorrection(&ditem_list)) {
+        ;
     }
     i1l.item = (int *) malloc(sock_buf_size * sizeof *(i1l.item));
     if (i1l.item == NULL) {
@@ -249,9 +250,6 @@ void freeData() {
 
 void freeApp() {
     freeData();
-#ifndef PLATFORM_ANY
-    gpioFree();
-#endif
     freeSocketFd(&sock_fd);
     freePid(&pid_file, &proc_id, pid_path);
 }

@@ -5,12 +5,12 @@ FUN_LIST_GET_BY_ID(DItem)
 
 int sendStrPack(char qnf, char *cmd) {
     extern Peer peer_client;
-    return acp_sendStrPack(qnf, cmd,  &peer_client);
+    return acp_sendStrPack(qnf, cmd, &peer_client);
 }
 
 int sendBufPack(char *buf, char qnf, char *cmd_str) {
     extern Peer peer_client;
-    return acp_sendBufPack(buf, qnf, cmd_str,  &peer_client);
+    return acp_sendBufPack(buf, qnf, cmd_str, &peer_client);
 }
 
 void sendStr(const char *s, uint8_t *crc) {
@@ -37,7 +37,9 @@ void printData(DeviceList *dl, DItemList *il) {
     uint8_t crc = 0;
     snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONFIG_FILE);
     sendStr(q, &crc);
-    snprintf(q, sizeof q, "tsv device file: %s\n", DEVICE_FILE);
+    snprintf(q, sizeof q, "DEVICE_FILE: %s\n", DEVICE_FILE);
+    sendStr(q, &crc);
+    snprintf(q, sizeof q, "LCORRECTION_FILE: %s\n", LCORRECTION_FILE);
     sendStr(q, &crc);
     snprintf(q, sizeof q, "port: %d\n", sock_port);
     sendStr(q, &crc);
@@ -59,12 +61,12 @@ void printData(DeviceList *dl, DItemList *il) {
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
     for (i = 0; i < dl->length; i++) {
         snprintf(q, sizeof q, "|%11p|%11d|%11d|%11d|%11p|%11p|\n",
-                (void *)&dl->item[i],
+                (void *) &dl->item[i],
                 dl->item[i].pin,
                 dl->item[i].t_id,
                 dl->item[i].h_id,
-                (void *)dl->item[i].t,
-                (void *)dl->item[i].h
+                (void *) dl->item[i].t,
+                (void *) dl->item[i].h
                 );
         sendStr(q, &crc);
     }
@@ -77,17 +79,34 @@ void printData(DeviceList *dl, DItemList *il) {
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
     for (i = 0; i < il->length; i++) {
         snprintf(q, sizeof q, "|%11p|%11d|%11f|%11d|%11ld|%11ld|%11p|\n",
-                (void *)&il->item[i],
+                (void *) &il->item[i],
                 il->item[i].id,
                 il->item[i].value,
                 il->item[i].value_state,
                 il->item[i].device->tm.tv_sec,
                 il->item[i].device->tm.tv_nsec,
-                (void *)il->item[i].device
+                (void *) il->item[i].device
                 );
         sendStr(q, &crc);
     }
     sendStr("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n", &crc);
+
+    sendStr("+-----------------------------------------------+\n", &crc);
+    sendStr("|                   correction                  |\n", &crc);
+    sendStr("+-----------+-----------+-----------+-----------+\n", &crc);
+    sendStr("| device_id |  factor   |   delta   |  active   |\n", &crc);
+    sendStr("+-----------+-----------+-----------+-----------+\n", &crc);
+    for (i = 0; i < il->length; i++) {
+        snprintf(q, sizeof q, "|%11d|%11f|%11f|%11d|\n",
+                il->item[i].id,
+                il->item[i].lcorrection.factor,
+                il->item[i].lcorrection.delta,
+                il->item[i].lcorrection.active
+                );
+        sendStr(q, &crc);
+    }
+    sendStr("+-----------+-----------+-----------+-----------+\n", &crc);
+
     sendFooter(crc);
 }
 

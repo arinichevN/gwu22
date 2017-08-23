@@ -5,7 +5,11 @@ int max31855_init(int sclk, int cs, int miso) {
     pinModeOut(cs);
     pinModeOut(sclk);
     pinModeIn(miso);
+    pinPUD(miso, PUD_DOWN);
+    pinPUD(sclk, PUD_OFF);
+    pinPUD(cs, PUD_OFF);
     pinHigh(cs);
+    pinLow(sclk);
     return 1;
 }
 
@@ -26,12 +30,12 @@ int max31855_read(float *result, int sclk, int cs, int miso) {
     {
         int i;
         for (i = 31; i >= 0; i--) {
-            pinLow(sclk);
+            pinHigh(sclk);
             delayUsBusy(DELAY);
             if (pinRead(miso)) {
                 v |= (1 << i);
             }
-            pinHigh(sclk);
+            pinLow(sclk);
             delayUsBusy(DELAY);
         }
     }

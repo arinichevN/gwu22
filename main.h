@@ -22,6 +22,7 @@
 
 #define DEVICE_FILE "" CONF_DIR "device.tsv"
 #define CONFIG_FILE "" CONF_DIR "config.tsv"
+#define LCORRECTION_FILE "" CONF_DIR "lcorrection.tsv"
 
 #define RETRY_NUM 5
 
@@ -34,6 +35,12 @@ enum {
     INIT,
     WTIME
 } StateAPP;
+
+typedef struct {
+    int active;
+    float factor;
+    float delta;
+} LCORRECTION;
 
 struct device_st {
     int pin;
@@ -50,6 +57,7 @@ struct ditem_st {
     struct device_st *device;
     float value;
     int value_state; //0 if reading value from device failed
+       LCORRECTION lcorrection;
 };
 
 typedef struct device_st Device;
