@@ -4,14 +4,14 @@ int readSettings() {
     FILE* stream = fopen(CONFIG_FILE, "r");
     if (stream == NULL) {
 #ifdef MODE_DEBUG
-        fputs("ERROR: readSettings: fopen\n", stderr);
+        perror("readSettings()");
 #endif
         return 0;
     }
     skipLine(stream);
     int n;
-    n = fscanf(stream, "%d\t%255s\t%d\t%u", &sock_port, pid_path, &sock_buf_size, &retry_count);
-    if (n != 4) {
+    n = fscanf(stream, "%d\t%255s\t%u", &sock_port, pid_path, &retry_count);
+    if (n != 3) {
         fclose(stream);
 #ifdef MODE_DEBUG
         fputs("ERROR: readSettings: bad row format\n", stderr);
@@ -20,7 +20,7 @@ int readSettings() {
     }
     fclose(stream);
 #ifdef MODE_DEBUG
-    printf("readSettings: \n\tsock_port: %d, \n\tpid_path: %s, \n\tsock_buf_size: %d \n\tretry_count: %u\n", sock_port, pid_path, sock_buf_size, retry_count);
+    printf("readSettings: \n\tsock_port: %d, \n\tpid_path: %s, \n\tretry_count: %u\n", sock_port, pid_path, retry_count);
 #endif
     return 1;
 }
