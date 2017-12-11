@@ -3,18 +3,6 @@
 
 FUN_LIST_GET_BY_ID(DItem)
 
-/*
-int catFTS(DItem *item, char *buf, size_t buf_size) {
-    char q[LINE_SIZE];
-    snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR FLOAT_NUM ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, item->id, item->value, item->device->tm.tv_sec, item->device->tm.tv_nsec, item->value_state);
-    if (bufCat(buf, q, buf_size) == NULL) {
-        sendStrPack(ACP_RESP_BUF_OVERFLOW);
-        return 0;
-    }
-    return 1;
-}
- */
-
 int catFTS(DItem *item, ACPResponse *response) {
     return acp_responseFTSCat(item->id, item->value, item->device->tm, item->value_state, response);
 

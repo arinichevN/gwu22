@@ -98,8 +98,7 @@ void serverRun(int *state, int init_state) {
         if (i1l.length <= 0) {
             return;
         }
-        size_t i;
-        for (i = 0; i < i1l.length; i++) {
+        for (int i = 0; i < i1l.length; i++) {
             DItem *ditem = getDItemById(i1l.item[i], &ditem_list);
             if (ditem != NULL) {
                 readDevice(ditem->device);
@@ -108,12 +107,8 @@ void serverRun(int *state, int init_state) {
                 }
             }
         }
-        if (!acp_responseSend(&response, &peer_client)) {
-            return;
-        }
     }
-    return;
-
+    acp_responseSend(&response, &peer_client);
 }
 
 void initApp() {
@@ -146,8 +141,7 @@ int initData() {
     if (!initDeviceLCorrection(&ditem_list)) {
         ;
     }
-    i1l.item = (int *) malloc(ditem_list.length * sizeof *(i1l.item));
-    if (i1l.item == NULL) {
+    if (!initI1List(&i1l, ditem_list.length)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
         return 0;
