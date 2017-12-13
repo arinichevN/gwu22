@@ -44,6 +44,7 @@ function move_conf {
 	([ -d $CONF_DIR_APP ] || mkdir $CONF_DIR_APP) && \
 	cp  config.tsv $CONF_DIR_APP && \
 	cp  device.tsv $CONF_DIR_APP && \
+	cp  lcorrection.tsv $CONF_DIR_APP && \
 	chmod -R a+w $CONF_DIR_APP
 	echo "Your $APP configuration files are here: $CONF_DIR_APP";
 }
