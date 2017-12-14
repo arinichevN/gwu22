@@ -80,6 +80,8 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
             LIi.tm.tv_sec = 0;
             LIi.tm.tv_nsec = 0;
             LIi.retry_count = retry_count;
+            ton_ts_touch(&LIi.read_tmr);
+            SET_READ_INTERVAL(LIi.read_interval);
         }
         if (!done) {
             fclose(stream);

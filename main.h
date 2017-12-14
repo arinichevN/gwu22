@@ -26,9 +26,9 @@
 
 #define RETRY_NUM 5
 
+#define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
+
 #define FLOAT_NUM "%.3f"
-
-
 
 enum {
     ON = 1,
@@ -51,6 +51,11 @@ struct device_st {
     struct ditem_st *t;
     struct ditem_st *h;
     struct timespec tm; //measurement time
+    
+    //we will read from this device with a certain frequency
+    Ton_ts read_tmr;
+    struct timespec read_interval;
+    
     unsigned int retry_count;
 };
 
@@ -59,7 +64,7 @@ struct ditem_st {
     struct device_st *device;
     float value;
     int value_state; //0 if reading value from device failed
-       LCORRECTION lcorrection;
+    LCORRECTION lcorrection;
 };
 
 typedef struct device_st Device;
