@@ -26,8 +26,6 @@
 
 #define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
 
-#define FLOAT_NUM "%.3f"
-
 enum {
     ON = 1,
     OFF,
