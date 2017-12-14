@@ -9,8 +9,8 @@ int catFTS(DItem *item, ACPResponse *response) {
 }
 
 void printData(ACPResponse *response) {
-    DeviceList *dl=&device_list;
-    DItemList *il=&ditem_list;
+    DeviceList *dl = &device_list;
+    DItemList *il = &ditem_list;
     int i = 0;
     char q[LINE_SIZE];
     snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONFIG_FILE);
@@ -28,6 +28,10 @@ void printData(ACPResponse *response) {
     snprintf(q, sizeof q, "app_state: %s\n", getAppState(app_state));
     SEND_STR(q)
     snprintf(q, sizeof q, "PID: %d\n", proc_id);
+    SEND_STR(q)
+    snprintf(q, sizeof q, "device_list.length: %d\n", dl->length);
+    SEND_STR(q)
+    snprintf(q, sizeof q, "ditem_list.length: %d\n", il->length);
     SEND_STR(q)
 
     SEND_STR("+-----------------------------------------------------------------------+\n")
