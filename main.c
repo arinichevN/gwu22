@@ -4,7 +4,6 @@
 
 #include "main.h"
 
-char app_class[NAME_SIZE];
 char pid_path[LINE_SIZE];
 int app_state = APP_INIT;
 int pid_file = -1;
@@ -28,7 +27,7 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
     //valid pin address
     FORL{
         if (!checkPin(LIi.pin)) {
-            fprintf(stderr, "checkDevice: check device table: bad pin=%d where app_class='%s' and pin=%d\n", LIi.pin, app_class, LIi.pin);
+            fprintf(stderr, "checkDevice: check device table: bad pin=%d where pin=%d\n", LIi.pin, LIi.pin);
             return 0;
         }
     }
@@ -36,7 +35,7 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
     FORL{
         for (j = i + 1; j < list->length; j++) {
             if (LIi.pin == list->item[j].pin) {
-                fprintf(stderr, "checkDevice: check device table: pins should be unique, repetition found where pin=%d and app_class='%s'\n", LIi.pin, app_class);
+                fprintf(stderr, "checkDevice: check device table: pins should be unique, repetition found where pin=%d\n", LIi.pin);
                 return 0;
             }
         }
@@ -45,7 +44,7 @@ int checkDevice(DeviceList *list, DItemList *ilist) {
     for (i = 0; i < ilist->length; i++) {
         for (j = i + 1; j < ilist->length; j++) {
             if (ilist->item[i].id == ilist->item[j].id) {
-                fprintf(stderr, "checkDevice: check device table: h_id and t_id should be unique, repetition found where pin=%d and app_class='%s'\n", ilist->item[i].device->pin, app_class);
+                fprintf(stderr, "checkDevice: check device table: h_id and t_id should be unique, repetition found where pin=%d\n", ilist->item[i].device->pin);
                 return 0;
             }
         }
