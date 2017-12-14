@@ -61,10 +61,8 @@ void lcorrect(DItem *item) {
 
 void readDevice(Device *item) {
     if (!ton_ts(item->read_interval, &item->read_tmr)) {
-        puts("NO READ YOU WILL GET OLD DATA");
         return;
     }
-puts("READING FROM DEVICE...");
     item->t->value_state = 0;
     item->h->value_state = 0;
     for (int i = 0; i < item->retry_count; i++) {
