@@ -24,8 +24,6 @@
 #define CONFIG_FILE "" CONF_DIR "config.tsv"
 #define LCORRECTION_FILE "" CONF_DIR "lcorrection.tsv"
 
-#define RETRY_NUM 5
-
 #define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
 
 #define FLOAT_NUM "%.3f"
