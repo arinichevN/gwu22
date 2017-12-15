@@ -104,6 +104,8 @@ static int physToGpio[PIN_NUM] = {
 #define PIN_NUM  1
 int physToGpio[PIN_NUM] = {-1};
 #endif
+#endif
+#endif
 
 #endif
 #endif
