@@ -73,7 +73,7 @@ void pinModeIn(int pin) {
     uint32_t offset_func;
     port_num_func = gpio_port_num[pin] >> 3;
     offset_func = ((gpio_port_num[pin] & 0x07) << 2);
-    addr = (uint32_t*) GPIO_REG_CFG(gpio, gpio_port[pin], port_num_func);
+    addr = (uint32_t*) GPIO_REG_CFG(gpio_buf, gpio_port[pin], port_num_func);
     val = le32toh(*addr);
     val &= ~(0x07 << offset_func);
     val |= (0 & 0x07) << offset_func;
@@ -86,7 +86,7 @@ void pinModeOut(int pin) {
     uint32_t offset_func;
     port_num_func = gpio_port_num[pin] >> 3;
     offset_func = ((gpio_port_num[pin] & 0x07) << 2);
-    addr = (uint32_t*) GPIO_REG_CFG(gpio, gpio_port[pin], port_num_func);
+    addr = (uint32_t*) GPIO_REG_CFG(gpio_buf, gpio_port[pin], port_num_func);
     val = le32toh(*addr);
     val &= ~(0x07 << offset_func);
     val |= (1 & 0x07) << offset_func;
