@@ -7,10 +7,14 @@
 
 
 #ifdef CPU_ALLWINNER_H3
-#include "gpio/h3.c"
+#include "gpio/allwinner_1.c"
 #endif
 
-#ifdef CPU_ALLWINNER_H3ZERO
+#ifdef CPU_ALLWINNER_H2P
+#include "gpio/h3p.c"
+#endif
+
+#ifdef CPU_ALLWINNER_H5
 #include "gpio/h3p.c"
 #endif
 
