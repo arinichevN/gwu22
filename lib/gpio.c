@@ -7,7 +7,7 @@
 
 
 #ifdef CPU_ALLWINNER_H3
-#include "gpio/allwinner_1.c"
+#include "gpio/allwinner_2.c"
 #endif
 
 #ifdef CPU_ALLWINNER_H2P

@@ -13,7 +13,6 @@
 
 #include <sys/types.h>
 #include <stddef.h>
-#include <getopt.h>
 #include "pinout.h"
 
 #define GPIO_REG_CFG(B, N, I) ((B) + (N)*0x24 + ((I)<<2) + 0x00)
