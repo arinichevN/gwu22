@@ -9,7 +9,7 @@
 #define MAP_MASK           (MAP_SIZE - 1)
 
 #define GPIO_BASE_LM_BP  (0x01f02000)   
-#define GPIO_BASE_BP        (0x01C20000)
+#define GPIO_BASE_BP     (0x01C20000)
 
 static volatile uint32_t *gpio_buf;
 static volatile uint32_t *gpio_lm_buf;
