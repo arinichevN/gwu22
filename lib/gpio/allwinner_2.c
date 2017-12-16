@@ -1,21 +1,4 @@
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <poll.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <time.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/ioctl.h>
 #include "pinout.h"
 
 #define BLOCK_SIZE              (4*1024)
@@ -222,5 +205,9 @@ int gpioSetup() {
         return 0;
     }
     makeData();
+    return 1;
+}
+
+int gpioFree() {
     return 1;
 }
