@@ -1,7 +1,3 @@
-/*
- * UPD gateway for DHT22
- */
-
 #include "main.h"
 
 char pid_path[LINE_SIZE];
@@ -15,7 +11,7 @@ Peer peer_client = {.fd = &sock_fd, .addr_size = sizeof peer_client.addr};
 
 unsigned int retry_count = 0;
 
-I1List i1l = {NULL, 0};
+I1List i1l;
 DeviceList device_list = {NULL, 0};
 DItemList ditem_list = {NULL, 0};
 
@@ -96,7 +92,7 @@ void serverRun(int *state, int init_state) {
     SERVER_HEADER
     SERVER_APP_ACTIONS
     if (ACP_CMD_IS(ACP_CMD_GET_FTS)) {
-        acp_requestDataToI1List(&request, &i1l, ditem_list.length);
+        acp_requestDataToI1List(&request, &i1l);
         if (i1l.length <= 0) {
             return;
         }

@@ -66,8 +66,8 @@ struct ditem_st {
 typedef struct device_st Device;
 typedef struct ditem_st DItem;
 
-DEF_LIST(Device)
-DEF_LIST(DItem)
+DEC_LIST(Device)
+DEC_LIST(DItem)
 
 
 extern int readSettings();
