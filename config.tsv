@@ -1,2 +1,2 @@
-port	PID_path	retry_count
-49162	/var/run/gwu22.pid	5
+port	retry_count
+49162	5

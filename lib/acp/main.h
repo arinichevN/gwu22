@@ -46,19 +46,19 @@
 #define ACP_SEND_STR(V) acp_responseSendStr(V, ACP_MIDDLE_PACK, response, peer);
 
 typedef struct {
-    char id[NAME_SIZE];
-    char addr_str[LINE_SIZE];
+    char * id;
+    char * addr_str;
     int port;
     int *fd;
     struct sockaddr_in addr;
     socklen_t addr_size;
     int active;
     struct timespec time1;
-    Mutex mutex;
 } Peer;
 
 DEC_LIST(Peer)
 DEC_FUN_LIST_INIT(Peer)
+extern void freePeerList(PeerList *list);
 
 typedef struct {
     char cmd[ACP_COMMAND_MAX_SIZE];
@@ -68,6 +68,7 @@ typedef struct {
     size_t cmd_size;
     size_t data_size;
     size_t buf_size;
+    size_t data_rows_count;
     uint8_t crc;
 } ACPRequest;
 
@@ -147,9 +148,8 @@ DEC_FUN_LIST_INIT(FTS)
 typedef struct {
     int id;
     int remote_id;
-    Peer *source;
+    Peer peer;
     int value;
-    Mutex mutex;
     struct timespec last_read_time;
     struct timespec interval_min;
     int last_return;
@@ -160,9 +160,8 @@ DEC_FUN_LIST_INIT(SensorInt)
 typedef struct {
     int id;
     int remote_id;
-    Peer *source;
+    Peer peer;
     FTS value;
-    Mutex mutex;
     struct timespec last_read_time;
     struct timespec interval_min;
     int last_return;
@@ -173,10 +172,9 @@ DEC_FUN_LIST_INIT(SensorFTS)
 typedef struct {
     int id;
     int remote_id;
-    Peer *source;
+    Peer peer;
     float last_output; //we will keep last output value in order not to repeat the same queries to peers
     float pwm_rsl; //max duty cycle value (see lib/pid.h PWM_RSL)
-    Mutex mutex;
 } EM; //executive mechanism
 DEC_LIST(EM)
 DEC_FUN_LIST_INIT(EM)
@@ -199,22 +197,6 @@ DEC_FUN_LIST_GET_BY_IDSTR(Peer)
 DEC_FUN_LIST_GET_BY_ID(SensorFTS)
 
 DEC_FUN_LIST_GET_BY_ID(EM)
-
-DEC_FUN_LOCK(SensorInt)
-
-DEC_FUN_LOCK(SensorFTS)
-
-DEC_FUN_LOCK(Peer)
-
-DEC_FUN_LOCK(EM)
-
-DEC_FUN_UNLOCK(SensorInt)
-
-DEC_FUN_UNLOCK(SensorFTS)
-
-DEC_FUN_UNLOCK(Peer)
-
-DEC_FUN_UNLOCK(EM)
         
 extern int acp_responseStrCat(ACPResponse *item, const char *str) ;
 

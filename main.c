@@ -1,17 +1,12 @@
 #include "main.h"
 
-char pid_path[LINE_SIZE];
 int app_state = APP_INIT;
-int pid_file = -1;
-int proc_id = -1;
-int data_initialized = 0;
 int sock_port = -1;
 int sock_fd = -1; //socket file descriptor
 Peer peer_client = {.fd = &sock_fd, .addr_size = sizeof peer_client.addr};
 
 unsigned int retry_count = 0;
 
-I1List i1l;
 DeviceList device_list = {NULL, 0};
 DItemList ditem_list = {NULL, 0};
 
@@ -60,11 +55,19 @@ void readDevice(Device *item) {
     }
     item->t->value_state = 0;
     item->h->value_state = 0;
+#ifdef CPU_ANY
+    item->t->value = item->h->value = 0.0f;
+    item->tm = getCurrentTime();
+    item->t->value_state = 1;
+    item->h->value_state = 1;
+    lcorrect(item->t);
+    lcorrect(item->h);
+    return;
+#endif
     for (int i = 0; i < item->retry_count; i++) {
 #ifdef MODE_DEBUG
         printf("reading from pin: %d\n", item->pin);
 #endif
-#ifndef CPU_ANY
         if (dht22_read(item->pin, &item->t->value, &item->h->value)) {
             item->tm = getCurrentTime();
             item->t->value_state = 1;
@@ -74,23 +77,13 @@ void readDevice(Device *item) {
             return;
         }
         delayUsIdle(400000);
-#endif
-#ifdef CPU_ANY
-        item->t->value = item->h->value = 0.0f;
-        item->tm = getCurrentTime();
-        item->t->value_state = 1;
-        item->h->value_state = 1;
-        lcorrect(item->t);
-        lcorrect(item->h);
-        return;
-#endif
-
     }
 }
 
 void serverRun(int *state, int init_state) {
     SERVER_HEADER
     SERVER_APP_ACTIONS
+    DEF_SERVER_I1LIST
     if (ACP_CMD_IS(ACP_CMD_GET_FTS)) {
         acp_requestDataToI1List(&request, &i1l);
         if (i1l.length <= 0) {
@@ -112,10 +105,6 @@ void serverRun(int *state, int init_state) {
 void initApp() {
     if (!readSettings()) {
         exit_nicely_e("initApp: failed to read settings\n");
-    }
-    //  peer_client.sock_buf_size = ACP_BUFFER_MAX_SIZE;
-    if (!initPid(&pid_file, &proc_id, pid_path)) {
-        exit_nicely_e("initApp: failed to initialize pid\n");
     }
     if (!initServer(&sock_fd, sock_port)) {
         exit_nicely_e("initApp: failed to initialize server\n");
@@ -139,16 +128,10 @@ int initData() {
     if (!initDeviceLCorrection(&ditem_list)) {
         ;
     }
-    if (!initI1List(&i1l, ditem_list.length)) {
-        FREE_LIST(&ditem_list);
-        FREE_LIST(&device_list);
-        return 0;
-    }
     return 1;
 }
 
 void freeData() {
-    FREE_LIST(&i1l);
     FREE_LIST(&ditem_list);
     FREE_LIST(&device_list);
 }
@@ -156,7 +139,6 @@ void freeData() {
 void freeApp() {
     freeData();
     freeSocketFd(&sock_fd);
-    freePid(&pid_file, &proc_id, pid_path);
 }
 
 void exit_nicely() {
@@ -190,47 +172,32 @@ int main(int argc, char** argv) {
 #endif
     int data_initialized = 0;
     while (1) {
+#ifdef MODE_DEBUG
+        printf("%s(): %s %d\n", F,getAppState(app_state), data_initialized);
+#endif
         switch (app_state) {
             case APP_INIT:
-#ifdef MODE_DEBUG
-                puts("MAIN: init");
-#endif
                 initApp();
                 app_state = APP_INIT_DATA;
                 break;
             case APP_INIT_DATA:
-#ifdef MODE_DEBUG
-                puts("MAIN: init data");
-#endif
                 data_initialized = initData();
                 app_state = APP_RUN;
                 break;
             case APP_RUN:
-#ifdef MODE_DEBUG
-                puts("MAIN: run");
-#endif
                 serverRun(&app_state, data_initialized);
                 break;
             case APP_STOP:
-#ifdef MODE_DEBUG
-                puts("MAIN: stop");
-#endif
                 freeData();
                 data_initialized = 0;
                 app_state = APP_RUN;
                 break;
             case APP_RESET:
-#ifdef MODE_DEBUG
-                puts("MAIN: reset");
-#endif
                 freeApp();
                 data_initialized = 0;
                 app_state = APP_INIT;
                 break;
             case APP_EXIT:
-#ifdef MODE_DEBUG
-                puts("MAIN: exit");
-#endif
                 exit_nicely();
                 break;
             default:

@@ -5,27 +5,21 @@ void acp_lck_waitUnlock(Peer *peer, unsigned int interval_us) {
     while (1) {
         switch (state) {
             case 1:
-#ifdef MODE_DEBUG
-                puts("acp_waitUnlock: sending ping request to locker...");
-#endif
+                putsdo("sending ping request to locker...\n");
                 acp_pingPeer(peer);
                 if (peer->active) {
                     state = 2;
                 }
                 break;
             case 2:
-#ifdef MODE_DEBUG
-                puts("acp_waitUnlock: sending unlock request to locker...");
-#endif
+                putsdo("sending unlock request to locker...\n");
                 if (acp_requestSendUnrequitedCmd(ACP_CMD_LCK_UNLOCK, peer)) {
                     state = 3;
                 }
                 break;
             case 3:
             {
-#ifdef MODE_DEBUG
-                puts("acp_waitUnlock: checking locker to be unlocked...");
-#endif
+                putsdo("checking locker to be unlocked...\n");
                 int locked = 1;
                 if (acp_sendCmdGetInt(peer, ACP_CMD_GET_DATA, &locked)) {
                     if (!locked) {
@@ -35,9 +29,7 @@ void acp_lck_waitUnlock(Peer *peer, unsigned int interval_us) {
                 break;
             }
             case 4:
-#ifdef MODE_DEBUG
-                puts("acp_waitUnlock: done!");
-#endif
+                putsdo("done!\n");
                 return;
                 break;
         }

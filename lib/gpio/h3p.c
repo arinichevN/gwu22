@@ -1,5 +1,4 @@
 //Allwinner H3 CPU
-
 #include "pinout.h"
 
 #define PIO_BASE (0x01C20800)
@@ -218,13 +217,15 @@ int checkPin(int pin) {
 int gpioSetup() {
     int fd;
     if ((fd = open("/dev/mem", O_RDWR | O_SYNC | O_CLOEXEC)) < 0) {
-        fputs("gpioSetup: Unable to open /dev/mem\n", stderr);
+        fprintf(stderr, "%s(): ", __func__);
+        perror("open()");
         return 0;
     }
-    base = (volatile uint32_t *) mmap(0, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, PIO_BASE);
+    base =  mmap(0, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, PIO_BASE);
     close(fd);
     if (base == MAP_FAILED) {
-        fputs("gpioSetup: mmap() failed\n", stderr);
+       fprintf(stderr, "%s(): ", __func__);
+        perror("mmap()");
         return 0;
     }
     makeGpioDataOffset();

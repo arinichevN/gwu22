@@ -21,13 +21,11 @@ void printData(ACPResponse *response) {
     SEND_STR(q)
     snprintf(q, sizeof q, "port: %d\n", sock_port);
     SEND_STR(q)
-    snprintf(q, sizeof q, "pid_path: %s\n", pid_path);
-    SEND_STR(q)
     snprintf(q, sizeof q, "DEVICE_FILE: %s\n", DEVICE_FILE);
     SEND_STR(q)
     snprintf(q, sizeof q, "app_state: %s\n", getAppState(app_state));
     SEND_STR(q)
-    snprintf(q, sizeof q, "PID: %d\n", proc_id);
+    snprintf(q, sizeof q, "PID: %d\n", getpid());
     SEND_STR(q)
     snprintf(q, sizeof q, "device_list.length: %d\n", dl->length);
     SEND_STR(q)

@@ -7,22 +7,6 @@ FUN_LIST_GET_BY_ID(SensorFTS)
 
 FUN_LIST_GET_BY_ID(EM)
 
-FUN_LOCK(SensorInt)
-
-FUN_LOCK(SensorFTS)
-
-FUN_LOCK(Peer)
-
-FUN_LOCK(EM)
-
-FUN_UNLOCK(SensorInt)
-
-FUN_UNLOCK(SensorFTS)
-
-FUN_UNLOCK(Peer)
-
-FUN_UNLOCK(EM)
-
 FUN_LIST_INIT(I1)
 
 FUN_LIST_INIT(I2)
@@ -50,6 +34,15 @@ FUN_LIST_INIT(SensorInt)
 FUN_LIST_INIT(SensorFTS)
 
 FUN_LIST_INIT(EM)
+
+void freePeerList(PeerList *list) {
+    for (int i = 0; i < list->length; i++) {
+        free(list->item[i].id);
+        free(list->item[i].addr_str);
+    }
+    FREE_LIST(list);
+}
+
 static void acp_dumpBuf(const char *buf, size_t buf_size) {
     int i;
     for (i = 0; i < buf_size; i++) {
@@ -125,9 +118,7 @@ static int acp_crcCheck(const char * buf, size_t buf_size) {
     if (found && crc == crc_fact) {
         return 1;
     } else {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "acp_crcCheck() failed: crc_found: %d, crc: %hhu, crc_fact: %hhu\n", found, crc, crc_fact);
-#endif
+        printde("crc_found: %d, crc: %hhu, crc_fact: %hhu\n", found, crc, crc_fact);
         return 0;
     }
 }
@@ -141,24 +132,20 @@ static void acp_requestSetNewId(ACPRequest * item) {
 static int acp_read(char *buf, size_t buf_size, Peer *peer) {
     ssize_t n = recvfrom(*peer->fd, buf, buf_size, 0, (struct sockaddr*) (&(peer->addr)), &(peer->addr_size));
     if (n < 0) {
-#ifdef MODE_DEBUG
-        perror("acp_read()");
-#endif
+        perrord("recvfrom()");
         return 0;
     }
-#ifdef MODE_DEBUG
-    printf("acp_read(): count:%ld dump:\n",n);
+#ifdef MODE_VERBOSE
+    printf("%s(): count:%d dump:\n", __func__, n);
     acp_dumpBuf(buf, buf_size);
+    puts(buf);
 #endif
     return acp_crcCheck(buf, buf_size);
 }
 
-
 static int acp_responseParse(ACPResponse *item) {
     if (strlen(item->buf) < ACP_RESPONSE_BUF_SIZE_MIN) {
-#ifdef MODE_DEBUG
-        fputs("acp_responseParse(): data shortage\n", stderr);
-#endif
+        putsde("data shortage\n");
         return 0;
     }
     int block_count = 0;
@@ -184,17 +171,13 @@ static int acp_responseParse(ACPResponse *item) {
             }
             if (f1) {
                 if (!isdigit((int) item->buf[i])) {
-#ifdef MODE_DEBUG
-                    fprintf(stderr, "acp_responseParse(): parsing is_not_last: expected digit but %hhu found \n", item->buf[i]);
-#endif
+                    printde("parsing is_not_last: expected digit but %hhu found \n", item->buf[i]);
                     return 0;
                 }
                 inl_str[j] = item->buf[i];
             } else {
                 if (!isdigit((int) item->buf[i])) {
-#ifdef MODE_DEBUG
-                    fprintf(stderr, "acp_responseParse(): parsing seq: expected digit but %hhu found \n", item->buf[i]);
-#endif
+                    printde("parsing seq: expected digit but %hhu found \n", item->buf[i]);
                     return 0;
                 }
                 seq_str[j] = item->buf[i];
@@ -207,18 +190,14 @@ static int acp_responseParse(ACPResponse *item) {
                 item->data[j] = item->buf[i];
                 j++;
             } else {
-#ifdef MODE_DEBUG
-                fputs("acp_responseParse(): data buffer overflow\n", stderr);
-#endif
+                putsde("data buffer overflow\n");
                 return 0;
             }
             continue;
         }
         if (block_count == 2) {
             if (!isdigit((int) item->buf[i])) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_responseParse(): parsing id: expected digit but %hhu found \n", item->buf[i]);
-#endif
+                printde("parsing id: expected digit but %hhu found \n", item->buf[i]);
                 return 0;
             }
             id_str[j] = item->buf[i];
@@ -230,21 +209,15 @@ static int acp_responseParse(ACPResponse *item) {
         }
     }
     if (strlen(seq_str) <= 0) {
-#ifdef MODE_DEBUG
-        fputs("acp_responseParse(): seq not found\n", stderr);
-#endif
+        putsde("seq not found\n");
         return 0;
     }
     if (strlen(inl_str) <= 0) {
-#ifdef MODE_DEBUG
-        fputs("acp_responseParse(): is_not_last not found\n", stderr);
-#endif
+        putsde("is_not_last not found\n");
         return 0;
     }
     if (strlen(id_str) <= 0) {
-#ifdef MODE_DEBUG
-        fputs("acp_responseParse(): id not found\n", stderr);
-#endif
+        putsde("id not found\n");
         return 0;
     }
     item->seq = atoi(seq_str);
@@ -253,11 +226,21 @@ static int acp_responseParse(ACPResponse *item) {
     return 1;
 }
 
+static void acp_countDataRows(ACPRequest *item) {
+    item->data_rows_count = 0;
+    for (size_t i=0;i<item->data_size;i++) {
+        if(item->data[i]==ACP_DELIMITER_ROW){
+            item->data_rows_count++;
+        }
+        if(item->data[i]==0){
+            break;
+        }
+    }
+}
+
 static int acp_requestParse(ACPRequest *item) {
     if (strlen(item->buf) < ACP_REQUEST_BUF_SIZE_MIN) {
-#ifdef MODE_DEBUG
-        fputs("acp_requestParse(): data shortage\n", stderr);
-#endif
+        putsde("data shortage\n");
         return 0;
     }
     int block_count = 0;
@@ -275,9 +258,7 @@ static int acp_requestParse(ACPRequest *item) {
                 item->cmd[j] = item->buf[i];
                 j++;
             } else {
-#ifdef MODE_DEBUG
-                fputs("acp_requestParse(): cmd buffer overflow\n", stderr);
-#endif
+                putsde("cmd buffer overflow\n");
                 return 0;
             }
             continue;
@@ -287,18 +268,14 @@ static int acp_requestParse(ACPRequest *item) {
                 item->data[j] = item->buf[i];
                 j++;
             } else {
-#ifdef MODE_DEBUG
-                fputs("acp_requestParse(): data buffer overflow\n", stderr);
-#endif
+                putsde("data buffer overflow\n");
                 return 0;
             }
             continue;
         }
         if (block_count == 2) {
             if (!isdigit((int) item->buf[i])) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_requestParse(): parsing id: expected digit but %hhu found \n", item->buf[i]);
-#endif
+                printde("parsing id: expected digit but %hhu found \n", item->buf[i]);
                 return 0;
             }
             id_str[j] = item->buf[i];
@@ -310,10 +287,9 @@ static int acp_requestParse(ACPRequest *item) {
         }
     }
     if (strlen(id_str) <= 0) {
-#ifdef MODE_DEBUG
-        fputs("acp_requestParse(): id not found\n", stderr);
-#endif
+        putsde("id not found\n");
     }
+    acp_countDataRows(item);
     item->id = atoi(id_str);
     return 1;
 }
@@ -346,17 +322,15 @@ static void acp_bufToData(char **v) {
 
 static int acp_sendBuf(const char *buf, size_t buf_size, Peer *peer) {
     size_t sz = acp_packlen(buf, buf_size);
-#ifdef MODE_DEBUG
-    fprintf(stdout, "acp_sendBuf(): we will send: %u bytes to %s at %s %d\n", sz, peer->id, peer->addr_str, peer->port);
+#ifdef MODE_VERBOSE
+    fprintf(stdout, "%s(): we will send: %u bytes to %s at %s %d\n", __func__, sz, peer->id, peer->addr_str, peer->port);
 #endif
     return sendBuf((void *) buf, sz, *(peer->fd), (struct sockaddr *) (&peer->addr), peer->addr_size);
 }
 
 int acp_responseStrCat(ACPResponse *item, const char *str) {
     if (strlen(item->data) + strlen(str) + 1 >= item->data_size) {
-#ifdef MODE_DEBUG
-        fputs("acp_responseStrCat: buffer overflow\n", stderr);
-#endif
+        putsde("buffer overflow\n");
         return 0;
     }
     strcat(item->data, str);
@@ -365,9 +339,7 @@ int acp_responseStrCat(ACPResponse *item, const char *str) {
 
 int acp_requestStrCat(ACPRequest *item, const char *str) {
     if (strlen(item->data) + strlen(str) + 1 >= item->data_size) {
-#ifdef MODE_DEBUG
-        fputs("acp_requestStrCat: buffer overflow\n", stderr);
-#endif
+        putsde("buffer overflow\n");
         return 0;
     }
     strcat(item->data, str);
@@ -421,9 +393,7 @@ int acp_requestCheck(ACPRequest *item) {
 
 int acp_responseCheck(ACPResponse *response, ACPRequest *request) {
     if (response->id != request->id) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "acp_responseCheck(): unexpected id (response_id:%u, request_id:%u\n", response->id, request->id);
-#endif
+        printde("unexpected id (response_id:%u, request_id:%u\n", response->id, request->id);
         return 0;
     }
     return 1;
@@ -664,7 +634,7 @@ void acp_responsePack(ACPResponse *item) {
     crc_update_by_str(&item->crc, item->buf);
     char crc_str[] = {item->crc, '\0'};
     strcat(item->buf, crc_str);
-#ifdef MODE_DEBUG
+#ifdef MODE_VERBOSE
     fprintf(stdout, "response is: \n %u_%d_BLOCK_%s_BLOCK_%u_BLOCK_%hhu\n", item->seq, item->is_not_last, item->data, item->id, item->crc);
 #endif
 }
@@ -675,7 +645,7 @@ void acp_requestPack(ACPRequest *item) {
     crc_update_by_str(&item->crc, item->buf);
     char crc_str[] = {item->crc, '\0'};
     strcat(item->buf, crc_str);
-#ifdef MODE_DEBUG
+#ifdef MODE_VERBOSE
     fprintf(stdout, "request is: \n %s_BLOCK_%s_BLOCK_%u_BLOCK_%hhu\n", item->cmd, item->data, item->id, item->crc);
 #endif
 }
@@ -704,8 +674,7 @@ int acp_requestSendUnrequitedCmd(const char *cmd, Peer *peer) {
 int acp_requestSendI1List(char *cmd, const I1List *data, ACPRequest *request, Peer *peer) {
     acp_requestInit(request);
     acp_requestSetCmd(request, cmd);
-    int i;
-    for (i = 0; i < data->length; i++) {
+    for (int i = 0; i < data->length; i++) {
         char q[LINE_SIZE];
         snprintf(q, sizeof q, "%d" ACP_DELIMITER_ROW_STR, data->item[i]);
         if (!acp_requestStrCat(request, q)) {
@@ -721,8 +690,7 @@ int acp_requestSendI1List(char *cmd, const I1List *data, ACPRequest *request, Pe
 int acp_requestSendI1F1List(char *cmd, const I1F1List *data, ACPRequest *request, Peer *peer) {
     acp_requestInit(request);
     acp_requestSetCmd(request, cmd);
-    int i;
-    for (i = 0; i < data->length; i++) {
+    for (int i = 0; i < data->length; i++) {
         char q[LINE_SIZE];
         snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT ACP_DELIMITER_ROW_STR, data->item[i].p0, data->item[i].p1);
         if (!acp_requestStrCat(request, q)) {
@@ -738,8 +706,7 @@ int acp_requestSendI1F1List(char *cmd, const I1F1List *data, ACPRequest *request
 int acp_requestSendI2List(char *cmd, const I2List *data, ACPRequest *request, Peer *peer) {
     acp_requestInit(request);
     acp_requestSetCmd(request, cmd);
-    int i;
-    for (i = 0; i < data->length; i++) {
+    for (int i = 0; i < data->length; i++) {
         char q[LINE_SIZE];
         snprintf(q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, data->item[i].p0, data->item[i].p1);
         if (!acp_requestStrCat(request, q)) {
@@ -755,8 +722,7 @@ int acp_requestSendI2List(char *cmd, const I2List *data, ACPRequest *request, Pe
 int acp_requestSendS2List(char *cmd, const S2List *data, ACPRequest *request, Peer *peer) {
     acp_requestInit(request);
     acp_requestSetCmd(request, cmd);
-    int i;
-    for (i = 0; i < data->length; i++) {
+    for (int i = 0; i < data->length; i++) {
         char q[LINE_SIZE];
         snprintf(q, sizeof q, "%s" ACP_DELIMITER_COLUMN_STR "%s" ACP_DELIMITER_ROW_STR, data->item[i].p0, data->item[i].p1);
         if (!acp_requestStrCat(request, q)) {
@@ -772,8 +738,7 @@ int acp_requestSendS2List(char *cmd, const S2List *data, ACPRequest *request, Pe
 int acp_requestSendS1List(char *cmd, const S1List *data, ACPRequest *request, Peer *peer) {
     acp_requestInit(request);
     acp_requestSetCmd(request, cmd);
-    int i;
-    for (i = 0; i < data->length; i++) {
+    for (int i = 0; i < data->length; i++) {
         char q[LINE_SIZE];
         snprintf(q, sizeof q, "%s" ACP_DELIMITER_ROW_STR, &data->item[i * LINE_SIZE]);
         if (!acp_requestStrCat(request, q)) {
@@ -826,373 +791,246 @@ void acp_responseSendStr(const char *s, int is_not_last, ACPResponse *response, 
         response->last_is_ok = 0;
     }
 }
+
 FUN_ACP_RESPONSE_READ(I1List)
 FUN_ACP_RESPONSE_READ(I2List)
 FUN_ACP_RESPONSE_READ(I1F1List)
 FUN_ACP_RESPONSE_READ(FTSList)
 int acp_setEMOutput(EM *em, int output) {
-    if (lockEM(em)) {
-        if (lockPeer(em->source)) {
-            if (output == ((int) em->last_output)) {
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            I2 di[1];
-            di[0].p0 = em->remote_id;
-            di[0].p1 = output;
-            I2List data = {di, 1,1};
-            if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_INT, &data, em->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_setEMOutput(): failed to send request where em.id = %d\n", em->id);
-#endif
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            em->last_output = (float) output;
-            unlockPeer(em->source);
-            unlockEM(em);
-            return 1;
-        }
+    if (output == ((int) em->last_output)) {
+        return 0;
     }
-    return 0;
+    I2 di[1];
+    di[0].p0 = em->remote_id;
+    di[0].p1 = output;
+    I2List data = {di, 1, 1};
+    if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_INT, &data, &em->peer)) {
+        printde("failed to send request where em.id = %d\n", em->id);
+        return 0;
+    }
+    em->last_output = (float) output;
+    return 1;
 }
 
 int acp_setEMDutyCycle(EM *em, float output) {
-    if (lockEM(em)) {
-        if (lockPeer(em->source)) {
-            if (output == em->last_output) {
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            I2 di[1];
-            di[0].p0 = em->remote_id;
-            di[0].p1 = (int) output;
-            I2List data = {di, 1,1};
-            if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_PWM_DUTY_CYCLE, &data, em->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_setEMDutyCycle(): failed to send request where em.id = %d\n", em->id);
-#endif
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            em->last_output = output;
-            unlockPeer(em->source);
-            unlockEM(em);
-            return 1;
-        }
+    if (output == em->last_output) {
+        return 0;
     }
-    return 0;
+    I2 di[1];
+    di[0].p0 = em->remote_id;
+    di[0].p1 = (int) output;
+    I2List data = {di, 1, 1};
+    if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_PWM_DUTY_CYCLE, &data, &em->peer)) {
+        printde("failed to send request where em.id = %d\n", em->id);
+        return 0;
+    }
+    em->last_output = output;
+    return 1;
+
 }
 
 int acp_setEMOutputR(EM *em, int output) {
-    if (lockEM(em)) {
-        if (lockPeer(em->source)) {
-            I2 di[1];
-            di[0].p0 = em->remote_id;
-            di[0].p1 = output;
-            I2List data = {di, 1,1};
-            if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_INT, &data, em->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_setEMOutput(): failed to send request where em.id = %d\n", em->id);
-#endif
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            em->last_output = (float) output;
-            unlockPeer(em->source);
-            unlockEM(em);
-            return 1;
-        }
+    I2 di[1];
+    di[0].p0 = em->remote_id;
+    di[0].p1 = output;
+    I2List data = {di, 1, 1};
+    if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_INT, &data, &em->peer)) {
+        printde("failed to send request where em.id = %d\n", em->id);
+        return 0;
     }
-    return 0;
+    em->last_output = (float) output;
+    return 1;
 }
 
 int acp_setEMDutyCycleR(EM *em, float output) {
-    if (lockEM(em)) {
-        if (lockPeer(em->source)) {
-            I2 di[1];
-            di[0].p0 = em->remote_id;
-            di[0].p1 = (int) output;
-            I2List data = {di, 1,1};
-            if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_PWM_DUTY_CYCLE, &data, em->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "ERROR: acp_setEMDutyCycle(): failed to send request where em.id = %d\n", em->id);
-#endif
-                unlockPeer(em->source);
-                unlockEM(em);
-                return 0;
-            }
-            em->last_output = output;
-            unlockPeer(em->source);
-            unlockEM(em);
-            return 1;
-        }
+    I2 di[1];
+    di[0].p0 = em->remote_id;
+    di[0].p1 = (int) output;
+    I2List data = {di, 1, 1};
+    if (!acp_requestSendUnrequitedI2List(ACP_CMD_SET_PWM_DUTY_CYCLE, &data, &em->peer)) {
+        printde("failed to send request where em.id = %d\n", em->id);
+        return 0;
     }
-    return 0;
+    em->last_output = output;
+    return 1;
 }
 
 int acp_readSensorInt(SensorInt *s) {
-    if (lockSensorInt(s)) {
-        if (lockPeer(s->source)) {
-            struct timespec now = getCurrentTime();
-            /*
-                        if (!timeHasPassed(s->interval_min, s->last_read_time, now)) {
-                            unlockPeer(s->source);
-                            unlockSensorInt(s);
-                            return s->last_return;
-                        }
-             */
-
-            s->source->active = 0;
-            s->source->time1 = now;
-            s->last_read_time = now;
-            s->last_return = 0;
-
-            int di[1];
-            di[0] = s->remote_id;
-            I1List data = {di, 1,1};
-            ACPRequest request;
-            if (!acp_requestSendI1List(ACP_CMD_GET_INT, &data, &request, s->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorInt(): acp_requestSendI1List failed where sensor.id = %d\n", s->id);
-#endif
-                unlockPeer(s->source);
-                unlockSensorInt(s);
-                return 0;
-            }
-
-            //waiting for response...
-            I2 td[1];
-            I2List tl = {td, 0};
-
-            int i;
-            int done = 0;
-            for (i = 0; i < ACP_RETRY_NUM; i++) {
-                memset(&td, 0, sizeof tl);
-                tl.length = 0;
-                if (!acp_responseReadI2List(&tl, &request, s->source)) {
-#ifdef MODE_DEBUG
-                    fprintf(stderr, "acp_readSensorInt(): acp_responseReadI2List() error where sensor.id = %d\n", s->id);
-#endif
-                    unlockPeer(s->source);
-                    unlockSensorInt(s);
-                    return 0;
+    struct timespec now = getCurrentTime();
+    /*
+                if (!timeHasPassed(s->interval_min, s->last_read_time, now)) {
+                         
+                        
+                    return s->last_return;
                 }
-                s->source->active = 1;
-                if (tl.item[0].p0 == s->remote_id) {
-                    done = 1;
-                    break;
-                }
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorInt(): response:  peer returned id=%d but requested one was %d\n", tl.item[0].p0, s->remote_id);
-#endif
-            }
-            if (!done) {
-                unlockPeer(s->source);
-                unlockSensorInt(s);
-                return 0;
-            }
-            s->source->active = 1;
-            s->value = tl.item[0].p1;
-            s->last_return = 1;
-            unlockPeer(s->source);
-            unlockSensorInt(s);
-            return 1;
-        }
-        unlockSensorInt(s);
+     */
+
+    s->peer.active = 0;
+    s->peer.time1 = now;
+    s->last_read_time = now;
+    s->last_return = 0;
+
+    int di[1];
+    di[0] = s->remote_id;
+    I1List data = {di, 1, 1};
+    ACPRequest request;
+    if (!acp_requestSendI1List(ACP_CMD_GET_INT, &data, &request, &s->peer)) {
+        printde("acp_requestSendI1List failed where sensor.id = %d\n", s->id);
+        return 0;
     }
-    return 0;
+
+    //waiting for response...
+    I2 td[1];
+    I2List tl = {td, 0, 1};
+
+    memset(&td, 0, sizeof tl);
+    tl.length = 0;
+    if (!acp_responseReadI2List(&tl, &request, &s->peer)) {
+        printde("acp_responseReadI2List() error where sensor.id = %d\n", s->id);
+        return 0;
+    }
+    s->peer.active = 1;
+    if (tl.length != 1) {
+        printde("response: number of items = %d but 1 expected\n", tl.length);
+        return 0;
+    }
+    if (tl.item[0].p0 == s->remote_id) {
+        printde("response:  peer returned id=%d but requested one was %d\n", tl.item[0].p0, s->remote_id);
+        return 0;
+    }
+    s->peer.active = 1;
+    s->value = tl.item[0].p1;
+    s->last_return = 1;
+    return 1;
 }
 
 int acp_readSensorFTS(SensorFTS *s) {
-    if (lockSensorFTS(s)) {
-        if (lockPeer(s->source)) {
-            struct timespec now = getCurrentTime();
-            /*
-                        if (!timeHasPassed(s->interval_min, s->last_read_time, now)) {
-                            unlockPeer(s->source);
-                            unlockSensorFTS(s);
-                            return s->last_return;
-                        }
-             */
+    struct timespec now = getCurrentTime();
+    /*
+                if (!timeHasPassed(s->interval_min, s->last_read_time, now)) {
+                    return s->last_return;
+                }
+     */
 
-            s->source->active = 0;
-            s->source->time1 = now;
-            s->last_read_time = now;
-            s->last_return = 0;
-            s->value.state = 0;
+    s->peer.active = 0;
+    s->peer.time1 = now;
+    s->last_read_time = now;
+    s->last_return = 0;
+    s->value.state = 0;
 
-            int di[1];
-            di[0] = s->remote_id;
-            I1List data = {di, 1,1};
-            ACPRequest request;
-            if (!acp_requestSendI1List(ACP_CMD_GET_FTS, &data, &request, s->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorFTS(): acp_requestSendI1List failed where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
-#endif
-                unlockPeer(s->source);
-                unlockSensorFTS(s);
-                return 0;
-            }
-
-            //waiting for response...
-            FTS td[1];
-            FTSList tl = {td, 0};
-
-            memset(&td, 0, sizeof tl);
-            tl.length = 0;
-            if (!acp_responseReadFTSList(&tl, &request, s->source)) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorFTS(): acp_responseReadFTSList() error where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
-#endif
-                unlockPeer(s->source);
-                unlockSensorFTS(s);
-                return 0;
-            }
-            s->source->active = 1;
-            if (tl.item[0].id != s->remote_id) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorFTS(): response: peer returned id=%d but requested one was %d\n", tl.item[0].id, s->remote_id);
-#endif
-                unlockPeer(s->source);
-                unlockSensorFTS(s);
-                return 0;
-            }
-            if (tl.length != 1) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorFTS(): response: number of items = %d but 1 expected\n", tl.length != 1);
-#endif
-                unlockPeer(s->source);
-                unlockSensorFTS(s);
-                return 0;
-            }
-            if (tl.item[0].state != 1) {
-#ifdef MODE_DEBUG
-                fprintf(stderr, "acp_readSensorFTS(): response: FTS state is bad where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
-#endif
-                s->source->active = 1;
-                unlockPeer(s->source);
-                unlockSensorFTS(s);
-                return 0;
-            }
-            s->source->active = 1;
-            s->value = tl.item[0];
-            s->last_return = 1;
-            unlockPeer(s->source);
-            unlockSensorFTS(s);
-            return 1;
-        }
-        unlockSensorFTS(s);
+    int di[1];
+    di[0] = s->remote_id;
+    I1List data = {di, 1, 1};
+    ACPRequest request;
+    if (!acp_requestSendI1List(ACP_CMD_GET_FTS, &data, &request, &s->peer)) {
+        printde("acp_requestSendI1List failed where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
+        return 0;
     }
-    return 0;
+
+    //waiting for response...
+    FTS td[1];
+    FTSList tl = {td, 0, 1};
+
+    memset(&td, 0, sizeof tl);
+    tl.length = 0;
+    if (!acp_responseReadFTSList(&tl, &request, &s->peer)) {
+        printde("acp_responseReadFTSList() error where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
+        return 0;
+    }
+    s->peer.active = 1;
+    if (tl.length != 1) {
+        printde("response: number of items = %d but 1 expected\n", tl.length);
+        return 0;
+    }
+    if (tl.item[0].id != s->remote_id) {
+        printde("response: peer returned id=%d but requested one was %d\n", tl.item[0].id, s->remote_id);
+        return 0;
+    }
+    if (tl.item[0].state != 1) {
+        printde("response: FTS state is bad where sensor.id = %d and remote_id=%d\n", s->id, s->remote_id);
+        return 0;
+    }
+    s->value = tl.item[0];
+    s->last_return = 1;
+    return 1;
 }
 
 int acp_getFTS(FTS *output, Peer *peer, int remote_id) {
-    if (lockPeer(peer)) {
-        struct timespec now = getCurrentTime();
-        peer->active = 0;
-        peer->time1 = now;
 
-        int di[1];
-        di[0] = remote_id;
-        I1List data = {di, 1,1};
-        ACPRequest request;
-        if (!acp_requestSendI1List(ACP_CMD_GET_FTS, &data, &request, peer)) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "acp_getFTS(): acp_requestSendI1List failed where remote_id=%d\n", remote_id);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
+    struct timespec now = getCurrentTime();
+    peer->active = 0;
+    peer->time1 = now;
 
-        //waiting for response...
-        FTS td[1];
-        FTSList tl = {td, 0};
-
-        memset(&td, 0, sizeof tl);
-        tl.length = 0;
-        if (!acp_responseReadFTSList(&tl, &request, peer)) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "acp_getFTS(): acp_responseReadFTSList() error where remote_id=%d\n", remote_id);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
-        peer->active = 1;
-        if (tl.item[0].id != remote_id) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "acp_getFTS(): response: peer returned id=%d but requested one was %d\n", tl.item[0].id, remote_id);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
-        if (tl.length != 1) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "acp_getFTS(): response: number of items = %d but 1 expected\n", tl.length != 1);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
-        if (tl.item[0].state != 1) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "acp_getFTS(): response: FTS state is bad where remote_id=%d\n", remote_id);
-#endif
-            peer->active = 1;
-            unlockPeer(peer);
-            return 0;
-        }
-        peer->active = 1;
-        *output = tl.item[0];
-        unlockPeer(peer);
-        return 1;
+    int di[1];
+    di[0] = remote_id;
+    I1List data = {di, 1, 1};
+    ACPRequest request;
+    if (!acp_requestSendI1List(ACP_CMD_GET_FTS, &data, &request, peer)) {
+        printde("send failed where remote_id=%d\n", remote_id);
+        return 0;
     }
-    return 0;
+
+    //waiting for response...
+    FTS td[1];
+    FTSList tl = {td, 0, 1};
+
+    memset(&td, 0, sizeof tl);
+    tl.length = 0;
+    if (!acp_responseReadFTSList(&tl, &request, peer)) {
+        printde("read failed where remote_id=%d\n", remote_id);
+        return 0;
+    }
+    peer->active = 1;
+    if (tl.length != 1) {
+        printde("response: number of items = %d but 1 expected\n", tl.length != 1);
+        return 0;
+    }
+    if (tl.item[0].id != remote_id) {
+        printde("response: peer returned id=%d but requested one was %d\n", tl.item[0].id, remote_id);
+        return 0;
+    }
+    if (tl.item[0].state != 1) {
+        printde("response: FTS state is bad where remote_id=%d\n", remote_id);
+        peer->active = 1;
+        return 0;
+    }
+    peer->active = 1;
+    *output = tl.item[0];
+
+    return 1;
 }
 
 void acp_pingPeer(Peer *item) {
-    if (lockPeer(item)) {
-        item->active = 0;
-        item->time1 = getCurrentTime();
-        ACPRequest request;
-        if (!acp_requestSendCmd(ACP_CMD_APP_PING, &request, item)) {
-#ifdef MODE_DEBUG
-            fputs("acp_pingPeer(): acp_requestSendCmd failed\n", stderr);
-#endif
-            unlockPeer(item);
-            return;
-        }
-        //waiting for response...
-        ACP_RESPONSE_CREATE
-        if (!acp_responseRead(&response, item)) {
-            unlockPeer(item);
-            return;
-        }
-        if (!acp_responseCheck(&response, &request)) {
-            unlockPeer(item);
-            return;
-        }
-        char *b = response.data;
-        char resp[] = {'\0', '\0'};
-        resp[0] = b[0];
-        if (strncmp(resp, ACP_RESP_APP_BUSY, 1) != 0) {
-#ifdef MODE_DEBUG
-            fputs("acp_pingPeer(): peer is not busy\n", stderr);
-#endif
-            unlockPeer(item);
-            return;
-        }
-        item->active = 1;
-        unlockPeer(item);
+
+    item->active = 0;
+    item->time1 = getCurrentTime();
+    ACPRequest request;
+    if (!acp_requestSendCmd(ACP_CMD_APP_PING, &request, item)) {
+        putsde("acp_requestSendCmd failed\n");
+        return;
     }
+    //waiting for response...
+    ACP_RESPONSE_CREATE
+    if (!acp_responseRead(&response, item)) {
+        return;
+    }
+    if (!acp_responseCheck(&response, &request)) {
+        return;
+    }
+    char *b = response.data;
+    char resp[] = {'\0', '\0'};
+    resp[0] = b[0];
+    if (strncmp(resp, ACP_RESP_APP_BUSY, 1) != 0) {
+        putsde("peer is not busy\n");
+        return;
+    }
+    item->active = 1;
+
+
 }
 
 void acp_pingPeerList(PeerList *list, struct timespec interval, struct timespec now) {
-    size_t i;
+    int i;
     FORL{
         if (timeHasPassed(interval, LIi.time1, now)) {
             acp_pingPeer(&LIi);
@@ -1224,79 +1062,61 @@ int acp_responseSendCurTime(ACPResponse *item, Peer *peer) {
 }
 
 int acp_sendCmdGetInt(Peer *peer, char* cmd, int *output) {
-    if (lockPeer(peer)) {
-        peer->active = 0;
-        peer->time1 = getCurrentTime();
-        ACPRequest request;
-        if (!acp_requestSendCmd(cmd, &request, peer)) {
-#ifdef MODE_DEBUG
-            fputs("acp_sendCmdGetInt(): acp_requestSendCmd failed\n", stderr);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
-        //waiting for response...
-        ACP_RESPONSE_CREATE
-        if (!acp_responseRead(&response, peer)) {
-            unlockPeer(peer);
-            return 0;
-        }
-        peer->active = 1;
-        unlockPeer(peer);
-        if (!acp_responseCheck(&response, &request)) {
-            return 0;
-        }
 
-        if (!acp_dataToI(response.data, output)) {
-#ifdef MODE_DEBUG
-            fputs("acp_sendCmdGetInt(): acp_dataToI() failed\n", stderr);
-#endif
-            return 0;
-        }
-        return 1;
+    peer->active = 0;
+    peer->time1 = getCurrentTime();
+    ACPRequest request;
+    if (!acp_requestSendCmd(cmd, &request, peer)) {
+        putsde("acp_requestSendCmd failed\n");
+        return 0;
     }
-#ifdef MODE_DEBUG
-    fputs("acp_sendCmdGetInt(): lock failed\n", stderr);
-#endif
-    return 0;
+    //waiting for response...
+    ACP_RESPONSE_CREATE
+    if (!acp_responseRead(&response, peer)) {
+
+        return 0;
+    }
+    peer->active = 1;
+
+    if (!acp_responseCheck(&response, &request)) {
+        return 0;
+    }
+
+    if (!acp_dataToI(response.data, output)) {
+        putsde("acp_dataToI() failed\n");
+        return 0;
+    }
+    return 1;
 }
 
 int acp_sendCmdGetFloat(Peer *peer, char* cmd, float *output) {
-    if (lockPeer(peer)) {
-        peer->active = 0;
-        peer->time1 = getCurrentTime();
-        ACPRequest request;
-        if (!acp_requestSendCmd(cmd, &request, peer)) {
-#ifdef MODE_DEBUG
-            fputs("acp_sendCmdGetFloat(): acp_requestSendCmd failed\n", stderr);
-#endif
-            unlockPeer(peer);
-            return 0;
-        }
-        //waiting for response...
-        ACP_RESPONSE_CREATE
-        if (!acp_responseRead(&response, peer)) {
-            unlockPeer(peer);
-            return 0;
-        }
-        unlockPeer(peer);
 
-        if (!acp_responseCheck(&response, &request)) {
-            return 0;
-        }
-        peer->active = 1;
-        if (!acp_dataToF(response.data, output)) {
-#ifdef MODE_DEBUG
-            fputs("acp_sendCmdGetFloat(): acp_dataToI() failed\n", stderr);
-#endif
-            return 0;
-        }
-        return 1;
+    peer->active = 0;
+    peer->time1 = getCurrentTime();
+    ACPRequest request;
+    if (!acp_requestSendCmd(cmd, &request, peer)) {
+        putsde("acp_requestSendCmd failed\n");
+        return 0;
     }
-#ifdef MODE_DEBUG
-    fputs("acp_sendCmdGetFloat(): lock failed\n", stderr);
-#endif
-    return 0;
+    //waiting for response...
+    ACP_RESPONSE_CREATE
+    if (!acp_responseRead(&response, peer)) {
+
+        return 0;
+    }
+
+
+    if (!acp_responseCheck(&response, &request)) {
+        return 0;
+    }
+    peer->active = 1;
+    if (!acp_dataToF(response.data, output)) {
+        putsde("acp_dataToI() failed\n");
+        return 0;
+    }
+    return 1;
+
+
 }
 
 int acp_responseFTSCat(int id, float value, struct timespec tm, int state, ACPResponse *response) {
@@ -1381,23 +1201,22 @@ void acp_printI3(I3List *list) {
 
 void acp_sendPeerListInfo(PeerList *pl, ACPResponse *response, Peer *peer) {
     char q[LINE_SIZE];
-    ACP_SEND_STR("+--------------------------------------------------------------------------------+\n")
-    ACP_SEND_STR("|                                       Peer                                     |\n")
-    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+-----------+\n")
-    ACP_SEND_STR("|    id     |    address    |   port    | sin_port  |     s_addr     |     fd    |\n")
-    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+-----------+\n")
+    ACP_SEND_STR("+--------------------------------------------------------------------+\n")
+    ACP_SEND_STR("|                               Peer                                 |\n")
+    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+\n")
+    ACP_SEND_STR("|    id     |    address    |   port    | sin_port  |     s_addr     |\n")
+    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+\n")
     for (int i = 0; i < pl->length; i++) {
-        snprintf(q, sizeof q, "|%11s|%15s|%11d|%11u|%16u|%11d|\n",
+        snprintf(q, sizeof q, "|%11s|%15s|%11d|%11u|%16u|\n",
                 pl->item[i].id,
                 pl->item[i].addr_str,
                 pl->item[i].port,
                 pl->item[i].addr.sin_port,
-                pl->item[i].addr.sin_addr.s_addr,
-                *pl->item[i].fd
+                pl->item[i].addr.sin_addr.s_addr
                 );
         ACP_SEND_STR(q)
     }
-    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+-----------+\n")
+    ACP_SEND_STR("+-----------+---------------+-----------+-----------+----------------+\n")
 }
 
 

@@ -4,23 +4,23 @@ int readSettings() {
     FILE* stream = fopen(CONFIG_FILE, "r");
     if (stream == NULL) {
 #ifdef MODE_DEBUG
-        perror("readSettings()");
+        fprintf(stderr, "%s()", F); perror("");
 #endif
         return 0;
     }
     skipLine(stream);
     int n;
-    n = fscanf(stream, "%d\t%255s\t%u", &sock_port, pid_path, &retry_count);
-    if (n != 3) {
+    n = fscanf(stream, "%d\t%u", &sock_port, &retry_count);
+    if (n != 2) {
         fclose(stream);
 #ifdef MODE_DEBUG
-        fputs("ERROR: readSettings: bad row format\n", stderr);
+        fprintf(stderr, "%s(): bad row format\n", F);
 #endif
         return 0;
     }
     fclose(stream);
 #ifdef MODE_DEBUG
-    printf("readSettings: \n\tsock_port: %d, \n\tpid_path: %s, \n\tretry_count: %u\n", sock_port, pid_path, retry_count);
+    printf("%s(): \n\tsock_port: %d, \n\tretry_count: %u\n",F, sock_port, retry_count);
 #endif
     return 1;
 }
@@ -34,7 +34,9 @@ int readSettings() {
 int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
     FILE* stream = fopen(DEVICE_FILE, "r");
     if (stream == NULL) {
-        fputs("ERROR: initDevice: fopen\n", stderr);
+#ifdef MODE_DEBUG
+        fprintf(stderr, "%s()", F); perror("");
+#endif
         return 0;
     }
     skipLine(stream);
@@ -46,7 +48,7 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
             break;
         }
 #ifdef MODE_DEBUG
-        printf("initDevice: count: pin = %d, t_id = %d, h_id = %d\n", x1, x2, x3);
+        printf("%s(): count: pin = %d, t_id = %d, h_id = %d\n",F, x1, x2, x3);
 #endif
         rnum++;
 
@@ -58,7 +60,7 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
         list->item = (Device *) malloc(list->length * sizeof *(list->item));
         if (list->item == NULL) {
             list->length = 0;
-            fputs("ERROR: initDevice: failed to allocate memory for pins\n", stderr);
+            fprintf(stderr,"%s(): failed to allocate memory for pins\n", F);
             fclose(stream);
             return 0;
         }
@@ -75,7 +77,7 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
                 done = 0;
             }
 #ifdef MODE_DEBUG
-            printf("initDevice: read: pin = %d, t_id = %d, h_id = %d\n", LIi.pin, LIi.t_id, LIi.h_id);
+            printf("%s(): read: pin = %d, t_id = %d, h_id = %d\n",F, LIi.pin, LIi.t_id, LIi.h_id);
 #endif
             LIi.tm.tv_sec = 0;
             LIi.tm.tv_nsec = 0;
@@ -85,7 +87,7 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
         }
         if (!done) {
             fclose(stream);
-            fputs("ERROR: initDevice: failure while reading rows\n", stderr);
+            fprintf(stderr,"%s(): failure while reading rows\n", F);
             return 0;
         }
     }
@@ -93,7 +95,7 @@ int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
     dl->item = (DItem *) malloc(dl->length * sizeof *(dl->item));
     if (dl->item == NULL) {
         dl->length = 0;
-        fputs("initDevice: failed to allocate memory for DItem\n", stderr);
+        fprintf(stderr,"%s(): failed to allocate memory for DItem\n", F);
         fclose(stream);
         return 0;
     }
@@ -140,7 +142,7 @@ int initDeviceLCorrection(DItemList *list) {
         item->lcorrection.factor=factor;
         item->lcorrection.delta=delta;
 #ifdef MODE_DEBUG
-        printf("initDeviceLCorrection: device_id = %d, factor = %f, delta = %f\n", device_id, factor, delta);
+        printf("%s(): device_id = %d, factor = %f, delta = %f\n", F,device_id, factor, delta);
 #endif
 
     }
