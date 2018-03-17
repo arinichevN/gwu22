@@ -5,7 +5,9 @@
 #include "lib/app.h"
 #include "lib/gpio.h"
 #include "lib/timef.h"
-#include "lib/dht22.h"
+#include "lib/device/dht22.h"
+#include "lib/tsv.h"
+#include "lib/lcorrection.h"
 #include "lib/acp/main.h"
 #include "lib/acp/app.h"
 #include "lib/udp.h"
@@ -17,12 +19,13 @@
 #define CONF_DIR "/etc/controller/" APP_NAME_STR "/"
 #endif
 #ifndef MODE_FULL
-#define CONF_DIR "./"
+#define CONF_DIR "./config/"
 #endif
 
-#define DEVICE_FILE "" CONF_DIR "device.tsv"
-#define CONFIG_FILE "" CONF_DIR "config.tsv"
-#define LCORRECTION_FILE "" CONF_DIR "lcorrection.tsv"
+#define CONF_MAIN_FILE CONF_DIR "main.tsv"
+#define CONF_DEVICE_FILE CONF_DIR "device.tsv"
+#define CONF_LCORRECTION_FILE CONF_DIR "lcorrection.tsv"
+#define CONF_MOD_MAPPING_FILE CONF_DIR "mod_mapping.tsv"
 
 #define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
 
@@ -34,16 +37,11 @@ enum {
     WTIME
 } StateAPP;
 
-typedef struct {
-    int active;
-    float factor;
-    float delta;
-} LCORRECTION;
 
 struct device_st {
     int pin;
-    int t_id;
-    int h_id;
+    int temp_id;
+    int hum_id;
     struct ditem_st *t;
     struct ditem_st *h;
     struct timespec tm; //measurement time
@@ -52,7 +50,7 @@ struct device_st {
     Ton_ts read_tmr;
     struct timespec read_interval;
     
-    unsigned int retry_count;
+    int retry_count;
 };
 
 struct ditem_st {
@@ -60,7 +58,7 @@ struct ditem_st {
     struct device_st *device;
     float value;
     int value_state; //0 if reading value from device failed
-    LCORRECTION lcorrection;
+    LCorrection *lcorrection;
 };
 
 typedef struct device_st Device;
@@ -71,12 +69,6 @@ DEC_LIST(DItem)
 
 
 extern int readSettings();
-
-extern int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count);
-
-extern int checkDevice(DeviceList *list, DItemList *ilist);
-
-extern void readDevice(Device *item);
 
 extern void serverRun(int *state, int init_state);
 

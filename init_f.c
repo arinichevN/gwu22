@@ -1,151 +1,133 @@
 #include <string.h>
 
-int readSettings() {
-    FILE* stream = fopen(CONFIG_FILE, "r");
-    if (stream == NULL) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s()", F); perror("");
-#endif
+#include "main.h"
+
+int readSettings(int *sock_port, int *retry_count, const char *data_path) {
+    TSVresult tsv = TSVRESULT_INITIALIZER;
+    TSVresult* r = &tsv;
+    if (!TSVinit(r, data_path)) {
+        TSVclear(r);
         return 0;
     }
-    skipLine(stream);
-    int n;
-    n = fscanf(stream, "%d\t%u", &sock_port, &retry_count);
-    if (n != 2) {
-        fclose(stream);
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s(): bad row format\n", F);
-#endif
+    int p = TSVgetis(r, 0, "port");
+    int c = (unsigned int) TSVgetis(r, 0, "retry_count");
+    if (TSVnullreturned(r)) {
         return 0;
     }
-    fclose(stream);
-#ifdef MODE_DEBUG
-    printf("%s(): \n\tsock_port: %d, \n\tretry_count: %u\n",F, sock_port, retry_count);
-#endif
+    TSVclear(r);
+    *sock_port = p;
+    *retry_count = c;
     return 1;
 }
 
-#define DEVICE_ROW_FORMAT "%d\t%d\t%d\n"
-#define DEVICE_FIELD_COUNT 3
-
-#define INDT i*2
-#define INDH i*2+1
-
-int initDevice(DeviceList *list, DItemList *dl, unsigned int retry_count) {
-    FILE* stream = fopen(DEVICE_FILE, "r");
-    if (stream == NULL) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s()", F); perror("");
-#endif
+int initDevice(DeviceList *list, DItemList *dl, int retry_count, const char *data_path) {
+    TSVresult tsv = TSVRESULT_INITIALIZER;
+    TSVresult* r = &tsv;
+    if (!TSVinit(r, data_path)) {
+        TSVclear(r);
         return 0;
     }
-    skipLine(stream);
-    int rnum = 0;
-    while (1) {
-        int n = 0, x1, x2, x3;
-        n = fscanf(stream, DEVICE_ROW_FORMAT, &x1, &x2, &x3);
-        if (n != DEVICE_FIELD_COUNT) {
+    int n = TSVntuples(r);
+    if (n <= 0) {
+        TSVclear(r);
+        return 1;
+    }
+    RESIZE_M_LIST(list, n);
+    if (LML != n) {
+#ifdef MODE_DEBUG
+        fprintf(stderr, "%s(): failure while resizing list\n", F);
+#endif
+        TSVclear(r);
+        return 0;
+    }
+    NULL_LIST(list);
+    for (int i = 0; i < LML; i++) {
+        LIi.pin = TSVgetis(r, i, "pin");
+        LIi.temp_id = TSVgetis(r, i, "temp_id");
+        LIi.hum_id = TSVgetis(r, i, "hum_id");
+        LIi.retry_count = retry_count;
+        LIi.tm.tv_sec = 0;
+        LIi.tm.tv_nsec = 0;
+        LIi.retry_count = retry_count;
+        ton_ts_touch(&LIi.read_tmr);
+        SET_READ_INTERVAL(LIi.read_interval);
+        if (TSVnullreturned(r)) {
             break;
         }
-#ifdef MODE_DEBUG
-        printf("%s(): count: pin = %d, t_id = %d, h_id = %d\n",F, x1, x2, x3);
-#endif
-        rnum++;
-
+        LL++;
     }
-    rewind(stream);
-    size_t i;
-    list->length = rnum;
-    if (list->length > 0) {
-        list->item = (Device *) malloc(list->length * sizeof *(list->item));
-        if (list->item == NULL) {
-            list->length = 0;
-            fprintf(stderr,"%s(): failed to allocate memory for pins\n", F);
-            fclose(stream);
-            return 0;
-        }
-        skipLine(stream);
-        int done = 1;
-        FORL{
-            int n;
-            n = fscanf(stream, DEVICE_ROW_FORMAT,
-            &LIi.pin,
-            &LIi.t_id,
-            &LIi.h_id
-            );
-            if (n != DEVICE_FIELD_COUNT) {
-                done = 0;
-            }
+    TSVclear(r);
+    if (LL != LML) {
 #ifdef MODE_DEBUG
-            printf("%s(): read: pin = %d, t_id = %d, h_id = %d\n",F, LIi.pin, LIi.t_id, LIi.h_id);
+        fprintf(stderr, "%s(): failure while reading rows\n", F);
 #endif
-            LIi.tm.tv_sec = 0;
-            LIi.tm.tv_nsec = 0;
-            LIi.retry_count = retry_count;
-            ton_ts_touch(&LIi.read_tmr);
-            SET_READ_INTERVAL(LIi.read_interval);
-        }
-        if (!done) {
-            fclose(stream);
-            fprintf(stderr,"%s(): failure while reading rows\n", F);
-            return 0;
-        }
-    }
-    dl->length = list->length * 2;
-    dl->item = (DItem *) malloc(dl->length * sizeof *(dl->item));
-    if (dl->item == NULL) {
-        dl->length = 0;
-        fprintf(stderr,"%s(): failed to allocate memory for DItem\n", F);
-        fclose(stream);
         return 0;
     }
+    size_t dll=list->length * 2;
+    RESIZE_M_LIST(dl, dll);
+    if (dl->max_length != dll) {
+#ifdef MODE_DEBUG
+        fprintf(stderr, "%s(): failure while resizing device item list\n", F);
+#endif
+        return 0;
+    }
+    NULL_LIST(dl);
+    dl->length=dll;
+#define INDT i*2
+#define INDH i*2+1
     FORL{
-        dl->item[INDT].id = LIi.t_id;
+        dl->item[INDT].id = LIi.temp_id;
         dl->item[INDT].device = &LIi;
         dl->item[INDT].value_state = 0;
         LIi.t = &dl->item[INDT];
 
-        dl->item[INDH].id = LIi.h_id;
+        dl->item[INDH].id = LIi.hum_id;
         dl->item[INDH].device = &LIi;
         dl->item[INDH].value_state = 0;
         LIi.h = &dl->item[INDH];
     }
-    fclose(stream);
+#undef INDT
+#undef INDH
     return 1;
 }
 
-int initDeviceLCorrection(DItemList *list) {
-    int i;
-    FORL{
-        LIi.lcorrection.active=0;
-    }
-    FILE* stream = fopen(LCORRECTION_FILE, "r");
-    if (stream == NULL) {
-#ifdef MODE_DEBUG
-        fputs("ERROR: initDeviceLCorrection: fopen\n", stderr);
-#endif
+int assignMod(DItemList *list, LCorrectionList *lcl, const char *data_path) {
+    TSVresult tsv = TSVRESULT_INITIALIZER;
+    TSVresult* r = &tsv;
+    if (!TSVinit(r, data_path)) {
+        TSVclear(r);
         return 0;
     }
-    skipLine(stream);
-    while (1) {
-        int n, device_id;
-        float factor, delta;
-        n = fscanf(stream, "%d\t%f\t%f\n", &device_id, &factor, &delta);
-        if (n != 3) {
-            break;
-        }
-        DItem * item=getDItemById(device_id, list);
-        if(item==NULL){
-            break;
-        }
-        item->lcorrection.active=1;
-        item->lcorrection.factor=factor;
-        item->lcorrection.delta=delta;
-#ifdef MODE_DEBUG
-        printf("%s(): device_id = %d, factor = %f, delta = %f\n", F,device_id, factor, delta);
-#endif
-
+    int n = TSVntuples(r);
+    if (n <= 0) {
+        TSVclear(r);
+        return 1;
     }
-    fclose(stream);
+    for (int i = 0; i < n; i++) {
+        int net_id = TSVgetis(r, i, "net_id");
+        int lcorrection_id = TSVgetis(r, i, "lcorrection_id");
+        if (TSVnullreturned(r)) {
+#ifdef MODE_DEBUG
+            fprintf(stderr, "%s(): row %d: bad format\n", F, i);
+#endif
+            break;
+        }
+        DItem *ditem = getDItemById( net_id, list);
+        if (ditem == NULL) {
+#ifdef MODE_DEBUG
+            fprintf(stderr, "%s(): row %d: device item for net_id=%d not found\n", F, i, net_id);
+#endif
+            continue;
+        }
+        LCorrection * lc = getLCorrectionById( lcorrection_id, lcl);
+        if (lc == NULL) {
+#ifdef MODE_DEBUG
+            fprintf(stderr, "%s(): row %d: lcorrection not found for net_id=%d and lcorrection_id=%d\n", F, i, net_id, lcorrection_id);
+#endif
+            continue;
+        }
+        ditem->lcorrection = lc;
+    }
+    TSVclear(r);
     return 1;
 }

@@ -2,83 +2,18 @@
 
 int app_state = APP_INIT;
 int sock_port = -1;
-int sock_fd = -1; //socket file descriptor
+int sock_fd = -1;
+
 Peer peer_client = {.fd = &sock_fd, .addr_size = sizeof peer_client.addr};
 
-unsigned int retry_count = 0;
+int retry_count = 0;
 
-DeviceList device_list = {NULL, 0};
-DItemList ditem_list = {NULL, 0};
+LCorrectionList lcorrection_list = LIST_INITIALIZER;
+DeviceList device_list = LIST_INITIALIZER;
+DItemList ditem_list = LIST_INITIALIZER;
 
 #include "util.c"
 #include "init_f.c"
-
-int checkDevice(DeviceList *list, DItemList *ilist) {
-    size_t i, j;
-    //valid pin address
-    FORL{
-        if (!checkPin(LIi.pin)) {
-            fprintf(stderr, "checkDevice: check device table: bad pin=%d where pin=%d\n", LIi.pin, LIi.pin);
-            return 0;
-        }
-    }
-    //unique pin
-    FORL{
-        for (j = i + 1; j < list->length; j++) {
-            if (LIi.pin == list->item[j].pin) {
-                fprintf(stderr, "checkDevice: check device table: pins should be unique, repetition found where pin=%d\n", LIi.pin);
-                return 0;
-            }
-        }
-    }
-    //unique id
-    for (i = 0; i < ilist->length; i++) {
-        for (j = i + 1; j < ilist->length; j++) {
-            if (ilist->item[i].id == ilist->item[j].id) {
-                fprintf(stderr, "checkDevice: check device table: h_id and t_id should be unique, repetition found where pin=%d\n", ilist->item[i].device->pin);
-                return 0;
-            }
-        }
-    }
-    return 1;
-}
-
-void lcorrect(DItem *item) {
-    if (item->lcorrection.active) {
-        item->value = item->value * item->lcorrection.factor + item->lcorrection.delta;
-    }
-}
-
-void readDevice(Device *item) {
-    if (!ton_ts(item->read_interval, &item->read_tmr)) {
-        return;
-    }
-    item->t->value_state = 0;
-    item->h->value_state = 0;
-#ifdef CPU_ANY
-    item->t->value = item->h->value = 0.0f;
-    item->tm = getCurrentTime();
-    item->t->value_state = 1;
-    item->h->value_state = 1;
-    lcorrect(item->t);
-    lcorrect(item->h);
-    return;
-#endif
-    for (int i = 0; i < item->retry_count; i++) {
-#ifdef MODE_DEBUG
-        printf("reading from pin: %d\n", item->pin);
-#endif
-        if (dht22_read(item->pin, &item->t->value, &item->h->value)) {
-            item->tm = getCurrentTime();
-            item->t->value_state = 1;
-            item->h->value_state = 1;
-            lcorrect(item->t);
-            lcorrect(item->h);
-            return;
-        }
-        delayUsIdle(400000);
-    }
-}
 
 void serverRun(int *state, int init_state) {
     SERVER_HEADER
@@ -103,7 +38,7 @@ void serverRun(int *state, int init_state) {
 }
 
 void initApp() {
-    if (!readSettings()) {
+    if (!readSettings(&sock_port, &retry_count, CONF_MAIN_FILE)) {
         exit_nicely_e("initApp: failed to read settings\n");
     }
     if (!initServer(&sock_fd, sock_port)) {
@@ -115,25 +50,27 @@ void initApp() {
 }
 
 int initData() {
-    if (!initDevice(&device_list, &ditem_list, retry_count)) {
+    initLCorrection(&lcorrection_list, CONF_LCORRECTION_FILE);
+    if (!initDevice(&device_list, &ditem_list, retry_count, CONF_DEVICE_FILE)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
+        FREE_LIST(&lcorrection_list);
         return 0;
     }
     if (!checkDevice(&device_list, &ditem_list)) {
         FREE_LIST(&ditem_list);
         FREE_LIST(&device_list);
+        FREE_LIST(&lcorrection_list);
         return 0;
     }
-    if (!initDeviceLCorrection(&ditem_list)) {
-        ;
-    }
+    assignMod(&ditem_list, &lcorrection_list, CONF_MOD_MAPPING_FILE) ;
     return 1;
 }
 
 void freeData() {
     FREE_LIST(&ditem_list);
     FREE_LIST(&device_list);
+    FREE_LIST(&lcorrection_list);
 }
 
 void freeApp() {
@@ -173,7 +110,7 @@ int main(int argc, char** argv) {
     int data_initialized = 0;
     while (1) {
 #ifdef MODE_DEBUG
-        printf("%s(): %s %d\n", F,getAppState(app_state), data_initialized);
+        printf("%s(): %s %d\n", F, getAppState(app_state), data_initialized);
 #endif
         switch (app_state) {
             case APP_INIT:

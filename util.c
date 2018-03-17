@@ -3,6 +3,67 @@
 
 FUN_LIST_GET_BY_ID(DItem)
 
+int checkDevice(DeviceList *list, DItemList *ilist) {
+    int valid = 1;
+
+    FORLIST(i) {
+        //valid pin address
+        if (!checkPin(LIi.pin)) {
+            fprintf(stderr, "%s(): check device table: bad pin=%d where pin=%d\n", F, LIi.pin, LIi.pin);
+            valid = 0;
+        }
+        //unique pin
+        for (size_t j = i + 1; j < list->length; j++) {
+            if (LIi.pin == LIj.pin) {
+                fprintf(stderr, "%s(): check device table: pins should be unique, repetition found where pin=%d\n", F, LIi.pin);
+                valid = 0;
+            }
+        }
+    }
+    //unique id
+
+    FORLISTP(ilist, i) {
+        for (size_t j = i + 1; j < ilist->length; j++) {
+            if (ilist->item[i].id == ilist->item[j].id) {
+                fprintf(stderr, "%s(): check device table: h_id and t_id should be unique, repetition found where pin=%d\n", F, ilist->item[i].device->pin);
+                valid = 0;
+            }
+        }
+    }
+    return valid;
+}
+
+void readDevice(Device *item) {
+    if (!ton_ts(item->read_interval, &item->read_tmr)) {
+        return;
+    }
+    item->t->value_state = 0;
+    item->h->value_state = 0;
+#ifdef CPU_ANY
+    item->t->value = item->h->value = 0.0f;
+    item->tm = getCurrentTime();
+    item->t->value_state = 1;
+    item->h->value_state = 1;
+    lcorrect(&item->t->value, item->t->lcorrection);
+    lcorrect(&item->h->value, item->h->lcorrection);
+    return;
+#endif
+    for (int i = 0; i < item->retry_count; i++) {
+#ifdef MODE_DEBUG
+        printf("reading from pin: %d\n", item->pin);
+#endif
+        if (dht22_read(item->pin, &item->t->value, &item->h->value)) {
+            item->tm = getCurrentTime();
+            item->t->value_state = 1;
+            item->h->value_state = 1;
+            lcorrect(&item->t->value, item->t->lcorrection);
+            lcorrect(&item->h->value, item->h->lcorrection);
+            return;
+        }
+        delayUsIdle(400000);
+    }
+}
+
 int catFTS(DItem *item, ACPResponse *response) {
     return acp_responseFTSCat(item->id, item->value, item->device->tm, item->value_state, response);
 
@@ -13,23 +74,19 @@ void printData(ACPResponse *response) {
     DItemList *il = &ditem_list;
     int i = 0;
     char q[LINE_SIZE];
-    snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONFIG_FILE);
+    snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONF_MAIN_FILE);
     SEND_STR(q)
-    snprintf(q, sizeof q, "DEVICE_FILE: %s\n", DEVICE_FILE);
+    snprintf(q, sizeof q, "DEVICE_FILE: %s\n", CONF_DEVICE_FILE);
     SEND_STR(q)
-    snprintf(q, sizeof q, "LCORRECTION_FILE: %s\n", LCORRECTION_FILE);
+    snprintf(q, sizeof q, "LCORRECTION_FILE: %s\n", CONF_LCORRECTION_FILE);
+    SEND_STR(q)
+    snprintf(q, sizeof q, "CONF_MOD_MAPPING_FILE: %s\n", CONF_MOD_MAPPING_FILE);
     SEND_STR(q)
     snprintf(q, sizeof q, "port: %d\n", sock_port);
-    SEND_STR(q)
-    snprintf(q, sizeof q, "DEVICE_FILE: %s\n", DEVICE_FILE);
     SEND_STR(q)
     snprintf(q, sizeof q, "app_state: %s\n", getAppState(app_state));
     SEND_STR(q)
     snprintf(q, sizeof q, "PID: %d\n", getpid());
-    SEND_STR(q)
-    snprintf(q, sizeof q, "device_list.length: %d\n", dl->length);
-    SEND_STR(q)
-    snprintf(q, sizeof q, "ditem_list.length: %d\n", il->length);
     SEND_STR(q)
 
     SEND_STR("+-----------------------------------------------------------------------+\n")
@@ -41,8 +98,8 @@ void printData(ACPResponse *response) {
         snprintf(q, sizeof q, "|%11p|%11d|%11d|%11d|%11p|%11p|\n",
                 (void *) &dl->item[i],
                 dl->item[i].pin,
-                dl->item[i].t_id,
-                dl->item[i].h_id,
+                dl->item[i].temp_id,
+                dl->item[i].hum_id,
                 (void *) dl->item[i].t,
                 (void *) dl->item[i].h
                 );
@@ -50,40 +107,27 @@ void printData(ACPResponse *response) {
     }
     SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+\n")
 
-    SEND_STR("+-----------------------------------------------------------------------------------+\n")
-    SEND_STR("|                                  device item                                      |\n")
-    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
-    SEND_STR("|  pointer  |     id    |   value   |value_state| time_sec  | time_nsec | device_pt |\n")
-    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
+    SEND_STR("+-----------------------------------------------------------------------------------------------+\n")
+    SEND_STR("|                                       device item                                             |\n")
+    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
+    SEND_STR("|  pointer  |     id    |   value   |value_state| time_sec  | time_nsec | device_pt | lcorr_ptr |\n")
+    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
     for (i = 0; i < il->length; i++) {
-        snprintf(q, sizeof q, "|%11p|%11d|%11f|%11d|%11ld|%11ld|%11p|\n",
+        snprintf(q, sizeof q, "|%11p|%11d|%11f|%11d|%11ld|%11ld|%11p|%11p|\n",
                 (void *) &il->item[i],
                 il->item[i].id,
                 il->item[i].value,
                 il->item[i].value_state,
                 il->item[i].device->tm.tv_sec,
                 il->item[i].device->tm.tv_nsec,
-                (void *) il->item[i].device
+                (void *) il->item[i].device,
+                (void *) il->item[i].lcorrection
                 );
         SEND_STR(q)
     }
-    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
-
-    SEND_STR("+-----------------------------------------------+\n")
-    SEND_STR("|                   correction                  |\n")
-    SEND_STR("+-----------+-----------+-----------+-----------+\n")
-    SEND_STR("| device_id |  factor   |   delta   |  active   |\n")
-    SEND_STR("+-----------+-----------+-----------+-----------+\n")
-    for (i = 0; i < il->length; i++) {
-        snprintf(q, sizeof q, "|%11d|%11f|%11f|%11d|\n",
-                il->item[i].id,
-                il->item[i].lcorrection.factor,
-                il->item[i].lcorrection.delta,
-                il->item[i].lcorrection.active
-                );
-        SEND_STR(q)
-    }
-    SEND_STR_L("+-----------+-----------+-----------+-----------+\n")
+    SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
+    acp_sendLCorrectionListInfo(&lcorrection_list, response, &peer_client);
+    SEND_STR_L("-\n")
 }
 
 void printHelp(ACPResponse *response) {

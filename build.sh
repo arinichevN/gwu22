@@ -37,9 +37,9 @@ function move_bin_dbg {
 function move_conf {
 	([ -d $CONF_DIR ] || mkdir $CONF_DIR) && \
 	([ -d $CONF_DIR_APP ] || mkdir $CONF_DIR_APP) && \
-	cp  config.tsv $CONF_DIR_APP && \
-	cp  device.tsv $CONF_DIR_APP && \
-	cp  lcorrection.tsv $CONF_DIR_APP && \
+	cp  ./config/main.tsv $CONF_DIR_APP && \
+	cp  ./config/device.tsv $CONF_DIR_APP && \
+	cp  ./config/lcorrection.tsv $CONF_DIR_APP && \
 	chmod -R a+w $CONF_DIR_APP
 	echo "Your $APP configuration files are here: $CONF_DIR_APP";
 }
@@ -59,13 +59,17 @@ function build_lib {
 	gcc $1 $CPU -c timef.c -D_REENTRANT  $DEBUG_PARAM -pthread && \
 	gcc $1 $CPU -c $SOCK.c -D_REENTRANT $DEBUG_PARAM -pthread && \
 	gcc $1 $CPU -c util.c -D_REENTRANT $DEBUG_PARAM -pthread && \
+	gcc $1 $CPU -c tsv.c -D_REENTRANT $DEBUG_PARAM -pthread && \
+	gcc $1 $CPU -c lcorrection.c -D_REENTRANT $DEBUG_PARAM -pthread && \
+	cd device && \
 	gcc $1 $CPU -c dht22.c -D_REENTRANT $DEBUG_PARAM -pthread && \
+	cd ../ && \
 	cd acp && \
 	gcc $1 $CPU -c main.c -D_REENTRANT $DEBUG_PARAM -pthread && \
 	cd ../ && \
 	echo "library: making archive..." && \
 	rm -f libpac.a
-	ar -crv libpac.a app.o crc.o gpio.o timef.o $SOCK.o util.o dht22.o acp/main.o && echo "library: done" && echo "hardware: $CPU $PINOUT"
+	ar -crv libpac.a app.o crc.o gpio.o timef.o $SOCK.o util.o tsv.o lcorrection.o device/dht22.o acp/main.o && echo "library: done" && echo "hardware: $CPU $PINOUT"
 	rm -f *.o acp/*.o
 }
 function build {
