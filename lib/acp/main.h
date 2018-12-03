@@ -60,8 +60,10 @@ typedef struct {
 } Peer;
 
 DEC_LIST(Peer)
-DEC_FUN_LIST_INIT(Peer)
 extern void freePeerList(PeerList *list);
+extern int initPeer(Peer * item);
+extern int initPeerList(PeerList * item);
+extern int cpPeer ( Peer *dest, const Peer * src );
 
 typedef struct {
     char cmd[ACP_COMMAND_MAX_SIZE];
@@ -90,7 +92,6 @@ typedef struct {
 typedef int I1;
 
 DEC_LIST(I1)
-DEC_FUN_LIST_INIT(I1)
 
 typedef struct {
     int p0;
@@ -98,7 +99,6 @@ typedef struct {
 } I2;
 
 DEC_LIST(I2)
-DEC_FUN_LIST_INIT(I2)
 
 typedef struct {
     int p0;
@@ -106,16 +106,12 @@ typedef struct {
     int p2;
 } I3;
 DEC_LIST(I3)
-DEC_FUN_LIST_INIT(I3)
 
 typedef float F1;
 DEC_LIST(F1)
-DEC_FUN_LIST_INIT(F1)
 
 typedef double D1;
-
 DEC_LIST(D1)
-DEC_FUN_LIST_INIT(D1)
 
 typedef struct {
     int p0;
@@ -123,19 +119,16 @@ typedef struct {
 } I1F1;
 
 DEC_LIST(I1F1)
-DEC_FUN_LIST_INIT(I1F1)
 
 typedef struct {
     int p0;
     uint32_t p1;
 } I1U321;
 DEC_LIST(I1U321)
-DEC_FUN_LIST_INIT(I1U321)
 
 typedef char S1;
 
 DEC_LIST(S1)
-DEC_FUN_LIST_INIT(S1)
 
 typedef struct {
     int p0;
@@ -143,7 +136,6 @@ typedef struct {
 } I1S1;
 
 DEC_LIST(I1S1)
-DEC_FUN_LIST_INIT(I1S1)
 
 typedef struct {
     char p0[LINE_SIZE];
@@ -151,7 +143,6 @@ typedef struct {
 } S2;
 
 DEC_LIST(S2)
-DEC_FUN_LIST_INIT(S2)
 
 typedef struct {
     int id;
@@ -161,7 +152,18 @@ typedef struct {
 } FTS;
 
 DEC_LIST(FTS)
-DEC_FUN_LIST_INIT(FTS)
+
+//remote channel
+typedef struct {
+    int id;
+    int channel_id;
+    Peer peer;
+} RChannel;
+
+DEC_LIST(RChannel)
+
+extern int cpRChannel(RChannel *dest, const RChannel *src);
+extern int getRChannelFromList ( RChannel *dest , const RChannelList *list, int id );
 
 typedef struct {
     int id;
@@ -174,7 +176,6 @@ typedef struct {
 } SensorInt;
 
 DEC_LIST(SensorInt)
-DEC_FUN_LIST_INIT(SensorInt)
 
 typedef struct {
     int id;
@@ -187,7 +188,6 @@ typedef struct {
 } SensorFTS;
 
 DEC_LIST(SensorFTS)
-DEC_FUN_LIST_INIT(SensorFTS)
 
 typedef struct {
     int id;
@@ -197,15 +197,6 @@ typedef struct {
     float pwm_rsl; //max duty cycle value (see lib/pid.h PWM_RSL)
 } EM; //executive mechanism
 DEC_LIST(EM)
-DEC_FUN_LIST_INIT(EM)
-
-typedef struct {
-    int id;
-    int remote_id;
-    Peer peer;
-} Channel;
-DEC_LIST(Channel)
-DEC_FUN_LIST_INIT(Channel)
 
 #define FUN_ACP_REQUEST_DATA_TO(T) void acp_requestDataTo ## T(ACPRequest *request, T *list){\
 acp_dataTo ## T(request->data, list);\
@@ -219,12 +210,6 @@ acp_dataTo ## T(request->data, list);\
 #define ACP_CMD_IS(V) acp_cmdcmp(&request, V)
 #define ACP_REQUEST_CREATE ACPRequest request; acp_requestInit(&request);
 #define ACP_RESPONSE_CREATE ACPResponse response; acp_responseInit(&response);
-
-DEC_FUN_LIST_GET_BY_IDSTR(Peer)
-
-DEC_FUN_LIST_GET_BY_ID(SensorFTS)
-
-DEC_FUN_LIST_GET_BY_ID(EM)
 
 extern int acp_responseStrCat(ACPResponse *item, const char *str);
 

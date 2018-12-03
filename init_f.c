@@ -34,9 +34,7 @@ int initDevice(DeviceList *list, DItemList *dl, int retry_count, const char *dat
     }
     RESIZE_M_LIST(list, n);
     if (LML != n) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s(): failure while resizing list\n", F);
-#endif
+        putsde( "failure while resizing list\n");
         TSVclear(r);
         return 0;
     }
@@ -58,24 +56,20 @@ int initDevice(DeviceList *list, DItemList *dl, int retry_count, const char *dat
     }
     TSVclear(r);
     if (LL != LML) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s(): failure while reading rows\n", F);
-#endif
+        putsde("failure while reading rows\n");
         return 0;
     }
     size_t dll=list->length * 2;
     RESIZE_M_LIST(dl, dll);
     if (dl->max_length != dll) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s(): failure while resizing device item list\n", F);
-#endif
+        putsde( "failure while resizing device item list\n");
         return 0;
     }
     NULL_LIST(dl);
     dl->length=dll;
 #define INDT i*2
 #define INDH i*2+1
-    FORL{
+    FORLi{
         dl->item[INDT].id = LIi.temp_id;
         dl->item[INDT].device = &LIi;
         dl->item[INDT].value_state = 0;
@@ -107,23 +101,19 @@ int assignMod(DItemList *list, LCorrectionList *lcl, const char *data_path) {
         int net_id = TSVgetis(r, i, "net_id");
         int lcorrection_id = TSVgetis(r, i, "lcorrection_id");
         if (TSVnullreturned(r)) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "%s(): row %d: bad format\n", F, i);
-#endif
+            printde("row %d: bad format\n", i);
             break;
         }
-        DItem *ditem = getDItemById( net_id, list);
+        DItem *ditem;
+        LIST_GETBYID(ditem, list, net_id);
         if (ditem == NULL) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "%s(): row %d: device item for net_id=%d not found\n", F, i, net_id);
-#endif
+            printde( "row %d: device item for net_id=%d not found\n", i, net_id);
             continue;
         }
-        LCorrection * lc = getLCorrectionById( lcorrection_id, lcl);
+        LCorrection * lc;
+        LIST_GETBYID(lc, lcl, lcorrection_id);
         if (lc == NULL) {
-#ifdef MODE_DEBUG
-            fprintf(stderr, "%s(): row %d: lcorrection not found for net_id=%d and lcorrection_id=%d\n", F, i, net_id, lcorrection_id);
-#endif
+            printde("row %d: lcorrection not found for net_id=%d and lcorrection_id=%d\n", i, net_id, lcorrection_id);
             continue;
         }
         ditem->lcorrection = lc;

@@ -28,14 +28,15 @@
 #define CONF_MOD_MAPPING_FILE CONF_DIR "mod_mapping.tsv"
 
 #define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
+#define READ_DELAY_US 400000
 
-enum {
-    ON = 1,
-    OFF,
-    DO,
-    INIT,
-    WTIME
-} StateAPP;
+//enum {
+    //ON = 1,
+    //OFF,
+    //DO,
+    //INIT,
+    //WTIME
+//} StateAPP;
 
 
 struct device_st {
@@ -72,7 +73,7 @@ extern int readSettings();
 
 extern void serverRun(int *state, int init_state);
 
-extern void initApp();
+extern int initApp();
 
 extern int initData();
 

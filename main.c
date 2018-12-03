@@ -20,33 +20,33 @@ void serverRun(int *state, int init_state) {
     SERVER_APP_ACTIONS
     DEF_SERVER_I1LIST
     if (ACP_CMD_IS(ACP_CMD_GET_FTS)) {
-        acp_requestDataToI1List(&request, &i1l);
-        if (i1l.length <= 0) {
-            return;
-        }
-        for (int i = 0; i < i1l.length; i++) {
-            DItem *ditem = getDItemById(i1l.item[i], &ditem_list);
-            if (ditem != NULL) {
-                readDevice(ditem->device);
-                if (!catFTS(ditem, &response)) {
-                    return;
-                }
-            }
+        SERVER_PARSE_I1LIST
+        FORLISTN(i1l, i) {
+            DItem *item;
+            LIST_GETBYID(item, &ditem_list, i1l.item[i]);
+            if (item == NULL) continue;
+            readDevice(item->device);
+            if (!catFTS(item, &response)) return;
         }
     }
     acp_responseSend(&response, &peer_client);
 }
 
-void initApp() {
+int initApp() {
     if (!readSettings(&sock_port, &retry_count, CONF_MAIN_FILE)) {
-        exit_nicely_e("initApp: failed to read settings\n");
+        putsde("failed to read settings\n");
+        return 0;
     }
     if (!initServer(&sock_fd, sock_port)) {
-        exit_nicely_e("initApp: failed to initialize server\n");
+        putsde("failed to initialize server\n");
+        return 0;
     }
     if (!gpioSetup()) {
-        exit_nicely_e("initApp: failed to initialize GPIO\n");
+	    freeSocketFd(&sock_fd);
+        putsde("failed to initialize GPIO\n");
+        return 0;
     }
+    return 1;
 }
 
 int initData() {
@@ -79,23 +79,15 @@ void freeApp() {
     gpioFree();
 }
 
-void exit_nicely() {
+void exit_nicely ( ) {
     freeApp();
-    puts("\nBye...");
-    exit(EXIT_SUCCESS);
-}
-
-void exit_nicely_e(char *s) {
-    fprintf(stderr, "%s", s);
-    freeApp();
-    exit(EXIT_FAILURE);
+    putsdo ( "\nexiting now..." );
+    exit ( EXIT_SUCCESS );
 }
 
 int main(int argc, char** argv) {
     if (geteuid() != 0) {
-#ifdef MODE_DEBUG
-        fprintf(stderr, "%s: root user expected\n", APP_NAME_STR);
-#endif
+        putsde("root user expected\n"); 
         return (EXIT_FAILURE);
     }
 #ifndef MODE_DEBUG
@@ -103,7 +95,7 @@ int main(int argc, char** argv) {
 #endif
     conSig(&exit_nicely);
     if (mlockall(MCL_CURRENT | MCL_FUTURE) == -1) {
-        perror("main: memory locking failed");
+        perrorl ( "mlockall()" );
     }
 #ifndef MODE_DEBUG
     setPriorityMax(SCHED_FIFO);
@@ -115,7 +107,9 @@ int main(int argc, char** argv) {
 #endif
         switch (app_state) {
             case APP_INIT:
-                initApp();
+                if ( !initApp() ) {
+                  return ( EXIT_FAILURE );
+                }
                 app_state = APP_INIT_DATA;
                 break;
             case APP_INIT_DATA:
@@ -139,8 +133,8 @@ int main(int argc, char** argv) {
                 exit_nicely();
                 break;
             default:
-                exit_nicely_e("main: unknown application state");
-                break;
+                putsde ( "unknown application state\n" );
+                return  ( EXIT_FAILURE );
         }
     }
     freeApp();

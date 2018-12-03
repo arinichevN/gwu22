@@ -1,12 +1,12 @@
 
 #include "main.h"
 
-FUN_LIST_GET_BY_ID(DItem)
+//FUN_LIST_GET_BY_ID(DItem)
 
 int checkDevice(DeviceList *list, DItemList *ilist) {
     int valid = 1;
 
-    FORLIST(i) {
+    FORLi {
         //valid pin address
         if (!checkPin(LIi.pin)) {
             fprintf(stderr, "%s(): check device table: bad pin=%d where pin=%d\n", F, LIi.pin, LIi.pin);
@@ -49,9 +49,7 @@ void readDevice(Device *item) {
     return;
 #endif
     for (int i = 0; i < item->retry_count; i++) {
-#ifdef MODE_DEBUG
-        printf("reading from pin: %d\n", item->pin);
-#endif
+        printdo("reading from pin: %d\n", item->pin);
         if (dht22_read(item->pin, &item->t->value, &item->h->value)) {
             item->tm = getCurrentTime();
             item->t->value_state = 1;
@@ -60,7 +58,7 @@ void readDevice(Device *item) {
             lcorrect(&item->h->value, item->h->lcorrection);
             return;
         }
-        delayUsIdle(400000);
+        delayUsIdle(READ_DELAY_US);
     }
 }
 
@@ -72,7 +70,6 @@ int catFTS(DItem *item, ACPResponse *response) {
 void printData(ACPResponse *response) {
     DeviceList *dl = &device_list;
     DItemList *il = &ditem_list;
-    int i = 0;
     char q[LINE_SIZE];
     snprintf(q, sizeof q, "CONFIG_FILE: %s\n", CONF_MAIN_FILE);
     SEND_STR(q)
@@ -94,7 +91,7 @@ void printData(ACPResponse *response) {
     SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+\n")
     SEND_STR("|  pointer  |    pin    |    t_id   |    h_id   |   t_pt    |  h_pt     |\n")
     SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+\n")
-    for (i = 0; i < dl->length; i++) {
+    FORLISTP(dl, i) {
         snprintf(q, sizeof q, "|%11p|%11d|%11d|%11d|%11p|%11p|\n",
                 (void *) &dl->item[i],
                 dl->item[i].pin,
@@ -112,7 +109,7 @@ void printData(ACPResponse *response) {
     SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
     SEND_STR("|  pointer  |     id    |   value   |value_state| time_sec  | time_nsec | device_pt | lcorr_ptr |\n")
     SEND_STR("+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+\n")
-    for (i = 0; i < il->length; i++) {
+    FORLISTP(il, i) {
         snprintf(q, sizeof q, "|%11p|%11d|%11f|%11d|%11ld|%11ld|%11p|%11p|\n",
                 (void *) &il->item[i],
                 il->item[i].id,
