@@ -44,7 +44,8 @@
 //the same for request and response
 #define ACP_BLOCK_IND_CRC 3
 
-#define ACP_FLOAT_FORMAT "%.3f"
+#define ACP_FLOAT_FORMAT_OUT "%.3f"
+#define ACP_FLOAT_FORMAT_IN "%lf"
 
 #define ACP_SEND_STR(V) acp_responseSendStr(V, ACP_MIDDLE_PACK, response, peer);
 
@@ -107,7 +108,7 @@ typedef struct {
 } I3;
 DEC_LIST(I3)
 
-typedef float F1;
+typedef double F1;
 DEC_LIST(F1)
 
 typedef double D1;
@@ -115,7 +116,7 @@ DEC_LIST(D1)
 
 typedef struct {
     int p0;
-    float p1;
+    double p1;
 } I1F1;
 
 DEC_LIST(I1F1)
@@ -146,7 +147,7 @@ DEC_LIST(S2)
 
 typedef struct {
     int id;
-    float value;
+    double value;
     struct timespec tm;
     int state;
 } FTS;
@@ -193,8 +194,8 @@ typedef struct {
     int id;
     int remote_id;
     Peer peer;
-    float last_output; //we will keep last output value in order not to repeat the same queries to peers
-    float pwm_rsl; //max duty cycle value (see lib/pid.h PWM_RSL)
+    double last_output; //we will keep last output value in order not to repeat the same queries to peers
+    double pwm_rsl; //max duty cycle value (see lib/pid.h PWM_RSL)
 } EM; //executive mechanism
 DEC_LIST(EM)
 
@@ -279,7 +280,7 @@ DEC_FUN_ACP_RESPONSE_READ(I1U321List)
 
 DEC_FUN_ACP_RESPONSE_READ(FTSList)
 
-extern int acp_setEMFloat(EM *em, float output);
+extern int acp_setEMFloat(EM *em, double output);
 
 extern int acp_setEMInt(EM *em, int output);
 
@@ -305,9 +306,9 @@ extern int acp_responseSendCurTime(ACPResponse *item, Peer *peer);
 
 extern int acp_sendCmdGetInt(Peer *peer, char* cmd, int *output);
 
-extern int acp_sendCmdGetFloat(Peer *peer, char* cmd, float *output);
+extern int acp_sendCmdGetFloat(Peer *peer, char* cmd, double *output);
 
-extern int acp_responseFTSCat(int id, float value, struct timespec tm, int state, ACPResponse *response);
+extern int acp_responseFTSCat(int id, double value, struct timespec tm, int state, ACPResponse *response);
 
 extern int acp_responseITSCat(int id, int value, struct timespec tm, int state, ACPResponse *response);
 

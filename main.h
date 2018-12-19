@@ -30,14 +30,6 @@
 #define SET_READ_INTERVAL(V) V.tv_sec=1; V.tv_nsec=0;
 #define READ_DELAY_US 400000
 
-//enum {
-    //ON = 1,
-    //OFF,
-    //DO,
-    //INIT,
-    //WTIME
-//} StateAPP;
-
 
 struct device_st {
     int pin;
@@ -57,7 +49,7 @@ struct device_st {
 struct ditem_st {
     int id;
     struct device_st *device;
-    float value;
+    double value;
     int value_state; //0 if reading value from device failed
     LCorrection *lcorrection;
 };
@@ -82,8 +74,6 @@ extern void freeData();
 extern void freeApp();
 
 extern void exit_nicely();
-
-extern void exit_nicely_e(char *s);
 
 #endif
 

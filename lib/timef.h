@@ -75,6 +75,8 @@ extern struct timespec getCurrentTime();
 
 extern void delayUsBusy(unsigned int td);
 
+extern void delayTsBusy(struct timespec interval);
+
 extern void delayUsBusyC(unsigned int td);
 
 extern void delayUsIdle(unsigned int td);

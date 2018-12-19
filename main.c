@@ -81,7 +81,7 @@ void freeApp() {
 
 void exit_nicely ( ) {
     freeApp();
-    putsdo ( "\nexiting now..." );
+    putsdo ( "\nexiting now...\n" );
     exit ( EXIT_SUCCESS );
 }
 
@@ -133,6 +133,7 @@ int main(int argc, char** argv) {
                 exit_nicely();
                 break;
             default:
+                freeApp();
                 putsde ( "unknown application state\n" );
                 return  ( EXIT_FAILURE );
         }

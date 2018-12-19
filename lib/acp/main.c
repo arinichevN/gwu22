@@ -426,8 +426,8 @@ static int acp_dataToI ( char *buf, int *item ) {
     return 1;
 }
 
-static int acp_dataToF ( char *buf, float *item ) {
-    if ( sscanf ( buf, "%f", item ) != 1 ) {
+static int acp_dataToF ( char *buf, double *item ) {
+    if ( sscanf ( buf, ACP_FLOAT_FORMAT_IN, item ) != 1 ) {
         return 0;
     }
     return 1;
@@ -488,8 +488,8 @@ static void acp_dataToF1List ( char *buf, F1List *list ) {
     char *buff = buf;
     list->length = 0;
     while ( list->length < list->max_length ) {
-        float p0;
-        if ( sscanf ( buff, "%f", &p0 ) != 1 ) {
+        double p0;
+        if ( sscanf ( buff, ACP_FLOAT_FORMAT_IN, &p0 ) != 1 ) {
             break;
         }
         list->item[list->length] = p0;
@@ -505,8 +505,8 @@ static void acp_dataToI1F1List ( char *buf, I1F1List *list ) {
     list->length = 0;
     while ( list->length < list->max_length ) {
         int p0;
-        float p1;
-        if ( sscanf ( buff, "%d" ACP_DELIMITER_COLUMN_STR "%f", &p0, &p1 ) != 2 ) {
+        double p1;
+        if ( sscanf ( buff, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT_IN, &p0, &p1 ) != 2 ) {
             break;
         }
         list->item[list->length].p0 = p0;
@@ -597,9 +597,9 @@ static void acp_dataToFTSList ( char *buf, FTSList *list ) {
     list->length = 0;
     while ( list->length < list->max_length ) {
         int id, state;
-        float temp;
+        double temp;
         struct timespec tm;
-        if ( sscanf ( buff, "%d" ACP_DELIMITER_COLUMN_STR "%f" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d", &id, &temp, &tm.tv_sec, &tm.tv_nsec, &state ) != 5 ) {
+        if ( sscanf ( buff, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT_IN ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d", &id, &temp, &tm.tv_sec, &tm.tv_nsec, &state ) != 5 ) {
             break;
         }
         list->item[list->length].id = id;
@@ -730,7 +730,7 @@ int acp_requestSendI1F1List ( char *cmd, const I1F1List *data, ACPRequest *reque
     acp_requestSetCmd ( request, cmd );
     for ( int i = 0; i < data->length; i++ ) {
         char q[LINE_SIZE];
-        snprintf ( q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT ACP_DELIMITER_ROW_STR, data->item[i].p0, data->item[i].p1 );
+        snprintf ( q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT_OUT ACP_DELIMITER_ROW_STR, data->item[i].p0, data->item[i].p1 );
         if ( !acp_requestStrCat ( request, q ) ) {
             return 0;
         }
@@ -857,7 +857,7 @@ FUN_ACP_RESPONSE_READ ( I1F1List )
 FUN_ACP_RESPONSE_READ ( I1U321List )
 FUN_ACP_RESPONSE_READ ( FTSList )
 
-int acp_setEMFloat ( EM *em, float output ) {
+int acp_setEMFloat ( EM *em, double output ) {
     I1F1 di[1];
     di[0].p0 = em->remote_id;
     di[0].p1 = output;
@@ -880,7 +880,7 @@ int acp_setEMInt ( EM *em, int output ) {
         printde ( "failed to send request where em.id = %d\n", em->id );
         return 0;
     }
-    em->last_output = ( float ) output;
+    em->last_output = ( double ) output;
     return 1;
 }
 
@@ -1221,7 +1221,7 @@ int acp_sendCmdGetInt ( Peer *peer, char* cmd, int *output ) {
     return 1;
 }
 
-int acp_sendCmdGetFloat ( Peer *peer, char* cmd, float *output ) {
+int acp_sendCmdGetFloat ( Peer *peer, char* cmd, double *output ) {
     peer->active = 0;
     peer->time1 = getCurrentTime();
     ACPRequest request;
@@ -1250,9 +1250,9 @@ int acp_sendCmdGetFloat ( Peer *peer, char* cmd, float *output ) {
 
 }
 
-int acp_responseFTSCat ( int id, float value, struct timespec tm, int state, ACPResponse *response ) {
+int acp_responseFTSCat ( int id, double value, struct timespec tm, int state, ACPResponse *response ) {
     char q[LINE_SIZE];
-    snprintf ( q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, id, value, tm.tv_sec, tm.tv_nsec, state );
+    snprintf ( q, sizeof q, "%d" ACP_DELIMITER_COLUMN_STR ACP_FLOAT_FORMAT_OUT ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%ld" ACP_DELIMITER_COLUMN_STR "%d" ACP_DELIMITER_ROW_STR, id, value, tm.tv_sec, tm.tv_nsec, state );
     return acp_responseStrCat ( response, q );
 }
 
