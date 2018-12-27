@@ -59,7 +59,8 @@
 #define FORLISTN(V, I) for (size_t I = 0; I < (V).length; I++) 
 #define FORLIST(I) for (size_t I = 0; I < list->length; I++) 
 #define FORLLj  for (size_t j = i + 1; j < list->length; j++) 
-#define FORLISTPL(V, I, J)  for (size_t J = i + 1; J < (V)->length; J++) 
+#define FORLISTPL(V, I, J)  for (size_t J = I + 1; J < (V)->length; J++) 
+#define FORLISTNL(V, I, J)  for (size_t J = I + 1; J < (V).length; J++) 
 
 #define FOREACH_CHANNEL FOREACH_LLIST(item,&channel_list,Channel)
 
